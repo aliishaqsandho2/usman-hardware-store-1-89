@@ -1,9 +1,9 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Plus, Pin, PinOff, Info } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Plus, Pin, PinOff, Info, AlertTriangle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { ProductDetailsModal } from "./ProductDetailsModal";
 
@@ -55,13 +55,28 @@ export const ProductCard: React.FC<ProductCardProps> = ({
     onAddToCart(product, quantity);
   };
 
+  // Check if this is an incomplete product
+  const isIncompleteProduct = product.isIncomplete || 
+    (product.description && product.description.includes('INCOMPLETE ENTRY')) ||
+    product.sku?.startsWith('TEMP-');
+
   return (
     <>
       <Card className={`hover:shadow-md transition-all duration-200 h-full ${
         isPinned 
           ? 'border-blue-300 bg-blue-50 dark:border-blue-600 dark:bg-blue-900/20' 
+          : isIncompleteProduct
+          ? 'border-orange-300 bg-orange-50 dark:border-orange-600 dark:bg-orange-900/20'
           : 'border-border bg-card'
       } relative`}>
+        {/* Incomplete Product Badge */}
+        {isIncompleteProduct && (
+          <Badge className="absolute top-1 left-1 h-4 px-1 text-xs bg-orange-500 text-white z-10">
+            <AlertTriangle className="h-2 w-2 mr-0.5" />
+            Incomplete
+          </Badge>
+        )}
+
         {/* Pin Button */}
         <Button
           variant="ghost"
@@ -90,10 +105,17 @@ export const ProductCard: React.FC<ProductCardProps> = ({
           <div className="flex-1 space-y-2">
             {/* Product Info */}
             <div className="space-y-0.5">
-              <h3 className="font-medium text-card-foreground text-xs leading-tight line-clamp-2 min-h-[2rem] pr-12">
+              <h3 className={`font-medium text-card-foreground text-xs leading-tight line-clamp-2 min-h-[2rem] ${
+                isIncompleteProduct ? 'pr-20' : 'pr-12'
+              }`}>
                 {product.name}
               </h3>
               <p className="text-[10px] text-muted-foreground">SKU: {product.sku}</p>
+              {isIncompleteProduct && (
+                <p className="text-[9px] text-orange-600 dark:text-orange-400 font-medium">
+                  ⚠ Update details later
+                </p>
+              )}
             </div>
             
             {/* Price and Stock */}
@@ -103,6 +125,9 @@ export const ProductCard: React.FC<ProductCardProps> = ({
               </div>
               <div className="text-[10px] text-muted-foreground">
                 {product.stock} {product.unit} available
+                {isIncompleteProduct && (
+                  <span className="text-orange-600 ml-1">(est.)</span>
+                )}
               </div>
             </div>
           </div>

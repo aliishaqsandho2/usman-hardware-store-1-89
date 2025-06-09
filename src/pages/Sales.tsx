@@ -5,13 +5,14 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { SidebarTrigger } from "@/components/ui/sidebar";
-import { Package, Search, Plus, Minus, Pin, PinOff, Filter, Menu, X } from "lucide-react";
+import { Package, Search, Plus, Minus, Pin, PinOff, Filter, Menu, X, PackagePlus } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { salesApi, customersApi, productsApi } from "@/services/api";
 import { QuickCustomerForm } from "@/components/QuickCustomerForm";
 import { TodaysOrdersModal } from "@/components/sales/TodaysOrdersModal";
 import { ProductCard } from "@/components/sales/ProductCard";
 import { CartSidebar } from "@/components/sales/CartSidebar";
+import { QuickAddProductForm } from "@/components/sales/QuickAddProductForm";
 import { useIsMobile } from "@/hooks/use-mobile";
 
 interface CartItem {
@@ -44,6 +45,7 @@ const Sales = () => {
   const [quantityInputs, setQuantityInputs] = useState<{[key: number]: string}>({});
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isCustomerDialogOpen, setIsCustomerDialogOpen] = useState(false);
+  const [isQuickAddProductOpen, setIsQuickAddProductOpen] = useState(false);
 
   useEffect(() => {
     fetchProducts();
@@ -286,6 +288,21 @@ const Sales = () => {
     }
   };
 
+  const handleProductAdded = (newProduct: any) => {
+    // Add the new product to the products list
+    setProducts(prev => [newProduct, ...prev]);
+    
+    // Update categories if it's a new category
+    if (newProduct.category && !categories.includes(newProduct.category)) {
+      setCategories(prev => [...prev, newProduct.category]);
+    }
+    
+    toast({
+      title: "Product Ready for Sale",
+      description: `${newProduct.name} is now available in the product list`,
+    });
+  };
+
   // Filter products by category and search term
   const filteredProducts = products.filter(product => {
     const matchesSearch = product?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -345,6 +362,18 @@ const Sales = () => {
               </div>
             </div>
             <div className="flex items-center gap-1 md:gap-2 flex-shrink-0">
+              {/* Quick Add Product Button */}
+              <Button 
+                size="sm" 
+                variant="outline"
+                onClick={() => setIsQuickAddProductOpen(true)}
+                className="h-8 text-xs md:text-sm px-2 md:px-3 bg-green-50 border-green-200 text-green-700 hover:bg-green-100"
+                title="Quick add new product"
+              >
+                <PackagePlus className="h-3 w-3 md:h-4 md:w-4 mr-1" />
+                <span className="hidden sm:inline">Add Product</span>
+              </Button>
+              
               {/* Mobile Cart Toggle */}
               {isMobile && (
                 <Button 
@@ -387,14 +416,30 @@ const Sales = () => {
               </h2>
             </div>
             
-            <div className="relative mb-4">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-              <Input
-                placeholder="Search products by name or SKU..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 h-9 md:h-10 bg-background border-input text-sm"
-              />
+            {/* Search and Quick Add Info */}
+            <div className="space-y-3 mb-4">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+                <Input
+                  placeholder="Search products by name or SKU..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10 h-9 md:h-10 bg-background border-input text-sm"
+                />
+              </div>
+
+              {/* Quick Add Info Banner */}
+              <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-700 p-3 rounded-lg">
+                <div className="flex items-start gap-2">
+                  <PackagePlus className="h-4 w-4 text-green-600 mt-0.5 flex-shrink-0" />
+                  <div className="text-sm">
+                    <p className="font-medium text-green-800 dark:text-green-200">Can't find a product?</p>
+                    <p className="text-green-700 dark:text-green-300 text-xs mt-1">
+                      Use "Add Product" button to quickly add new products during sale. You can update complete details later.
+                    </p>
+                  </div>
+                </div>
+              </div>
             </div>
 
             {/* Dynamic Category Filter Bar */}
@@ -584,6 +629,13 @@ const Sales = () => {
           setCustomers([...customers, customer]);
           setSelectedCustomer(customer);
         }}
+      />
+
+      {/* Quick Add Product Form */}
+      <QuickAddProductForm
+        open={isQuickAddProductOpen}
+        onOpenChange={setIsQuickAddProductOpen}
+        onProductAdded={handleProductAdded}
       />
     </div>
   );
