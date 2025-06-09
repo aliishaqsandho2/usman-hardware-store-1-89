@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -5,13 +6,14 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { SidebarTrigger } from "@/components/ui/sidebar";
-import { Package, Search, Plus, Minus, Pin, PinOff, Filter, Menu, X } from "lucide-react";
+import { Package, Search, Plus, Minus, Pin, PinOff, Filter, Menu, X, AlertTriangle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { salesApi, customersApi, productsApi } from "@/services/api";
 import { QuickCustomerForm } from "@/components/QuickCustomerForm";
 import { TodaysOrdersModal } from "@/components/sales/TodaysOrdersModal";
 import { ProductCard } from "@/components/sales/ProductCard";
 import { CartSidebar } from "@/components/sales/CartSidebar";
+import { QuickProductAddModal } from "@/components/sales/QuickProductAddModal";
 import { useIsMobile } from "@/hooks/use-mobile";
 
 interface CartItem {
@@ -36,6 +38,7 @@ const Sales = () => {
   const [selectedCustomer, setSelectedCustomer] = useState<any>(null);
   const [isQuickCustomerOpen, setIsQuickCustomerOpen] = useState(false);
   const [isTodaysOrdersOpen, setIsTodaysOrdersOpen] = useState(false);
+  const [isQuickProductAddOpen, setIsQuickProductAddOpen] = useState(false);
   const [todaysOrders, setTodaysOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [pinnedProducts, setPinnedProducts] = useState<number[]>([]);
@@ -130,6 +133,25 @@ const Sales = () => {
     } catch (error) {
       console.error('Failed to fetch today\'s orders:', error);
       setTodaysOrders([]);
+    }
+  };
+
+  const handleProductAdded = (newProduct: any) => {
+    // Add the new product to the current products list
+    setProducts(prev => [newProduct, ...prev]);
+    
+    // Update categories if it's a new category
+    if (newProduct.category && !categories.includes(newProduct.category)) {
+      setCategories(prev => [...prev, newProduct.category]);
+    }
+    
+    // Show special notification for incomplete quantity products
+    if (newProduct.incompleteQuantity) {
+      toast({
+        title: "Product Added with Incomplete Quantity",
+        description: `${newProduct.name} has been added. Remember to update the quantity later.`,
+        variant: "default"
+      });
     }
   };
 
@@ -313,6 +335,9 @@ const Sales = () => {
     return sum + (finalPrice * item.quantity);
   }, 0);
 
+  // Count products with incomplete quantity information
+  const incompleteQuantityCount = products.filter(p => p.incompleteQuantity).length;
+
   if (loading) {
     return (
       <div className="flex-1 p-4 md:p-6 space-y-6 min-h-screen bg-background">
@@ -384,7 +409,22 @@ const Sales = () => {
                 <Package className="h-4 w-4 text-blue-600" />
                 Products
                 <Badge variant="outline" className="ml-1 text-xs">{pinnedProducts.length} pinned</Badge>
+                {incompleteQuantityCount > 0 && (
+                  <Badge variant="outline" className="ml-1 text-xs text-orange-600 border-orange-300">
+                    <AlertTriangle className="h-3 w-3 mr-1" />
+                    {incompleteQuantityCount} incomplete
+                  </Badge>
+                )}
               </h2>
+              
+              {/* Quick Add Product Button */}
+              <Button
+                onClick={() => setIsQuickProductAddOpen(true)}
+                className="bg-green-600 hover:bg-green-700 text-white text-xs md:text-sm h-8 md:h-9 px-2 md:px-3"
+              >
+                <Plus className="h-3 w-3 md:h-4 md:w-4 mr-1" />
+                Quick Add Product
+              </Button>
             </div>
             
             <div className="relative mb-4">
@@ -584,6 +624,14 @@ const Sales = () => {
           setCustomers([...customers, customer]);
           setSelectedCustomer(customer);
         }}
+      />
+
+      {/* Quick Product Add Modal */}
+      <QuickProductAddModal
+        open={isQuickProductAddOpen}
+        onOpenChange={setIsQuickProductAddOpen}
+        onProductAdded={handleProductAdded}
+        categories={categories}
       />
     </div>
   );

@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Plus, Pin, PinOff, Info } from "lucide-react";
+import { Plus, Pin, PinOff, Info, AlertTriangle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { ProductDetailsModal } from "./ProductDetailsModal";
 
@@ -55,11 +55,17 @@ export const ProductCard: React.FC<ProductCardProps> = ({
     onAddToCart(product, quantity);
   };
 
+  // Check if product has incomplete quantity information
+  const hasIncompleteQuantity = product.incompleteQuantity || product.needsQuantityUpdate;
+  const isOutOfStock = product.stock <= 0;
+
   return (
     <>
       <Card className={`hover:shadow-md transition-all duration-200 h-full ${
         isPinned 
           ? 'border-blue-300 bg-blue-50 dark:border-blue-600 dark:bg-blue-900/20' 
+          : hasIncompleteQuantity
+          ? 'border-orange-300 bg-orange-50 dark:border-orange-600 dark:bg-orange-900/20'
           : 'border-border bg-card'
       } relative`}>
         {/* Pin Button */}
@@ -85,6 +91,13 @@ export const ProductCard: React.FC<ProductCardProps> = ({
         >
           <Info className="h-2.5 w-2.5 text-muted-foreground hover:text-blue-600" />
         </Button>
+
+        {/* Incomplete Quantity Warning */}
+        {hasIncompleteQuantity && (
+          <div className="absolute top-1 left-1 h-5 w-5 z-10" title={product.quantityNote || "Incomplete quantity information"}>
+            <AlertTriangle className="h-2.5 w-2.5 text-orange-600" />
+          </div>
+        )}
         
         <CardContent className="p-2 h-full flex flex-col">
           <div className="flex-1 space-y-2">
@@ -102,8 +115,21 @@ export const ProductCard: React.FC<ProductCardProps> = ({
                 PKR {product.price.toLocaleString()}
               </div>
               <div className="text-[10px] text-muted-foreground">
-                {product.stock} {product.unit} available
+                {hasIncompleteQuantity ? (
+                  <span className="text-orange-600 font-medium">
+                    Quantity unknown
+                  </span>
+                ) : (
+                  <>
+                    {product.stock} {product.unit} available
+                  </>
+                )}
               </div>
+              {hasIncompleteQuantity && product.quantityNote && (
+                <div className="text-[9px] text-orange-600 italic">
+                  {product.quantityNote}
+                </div>
+              )}
             </div>
           </div>
 
@@ -117,12 +143,12 @@ export const ProductCard: React.FC<ProductCardProps> = ({
                 value={quantityInput}
                 onChange={(e) => handleQuantityInputChange(e.target.value)}
                 className="h-6 text-[10px] flex-1 bg-background border-input px-1"
-                disabled={product.stock <= 0}
+                disabled={!hasIncompleteQuantity && product.stock <= 0}
               />
               <Button
                 onClick={handleAddCustomQuantity}
                 className="h-6 w-6 p-0 bg-green-600 hover:bg-green-700 text-white flex-shrink-0"
-                disabled={product.stock <= 0 || !quantityInput}
+                disabled={!hasIncompleteQuantity && product.stock <= 0 || !quantityInput}
               >
                 <Plus className="h-2.5 w-2.5" />
               </Button>
@@ -131,10 +157,18 @@ export const ProductCard: React.FC<ProductCardProps> = ({
             {/* Quick Add Button */}
             <Button
               onClick={handleQuickAdd}
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white text-[10px] h-6"
-              disabled={product.stock <= 0}
+              className={`w-full text-white text-[10px] h-6 ${
+                hasIncompleteQuantity 
+                  ? 'bg-orange-600 hover:bg-orange-700' 
+                  : 'bg-blue-600 hover:bg-blue-700'
+              }`}
+              disabled={!hasIncompleteQuantity && product.stock <= 0}
             >
-              Quick Add ({quantityInput || '1'} {product.unit})
+              {hasIncompleteQuantity ? (
+                <>Quick Add ({quantityInput || '1'} {product.unit}) ⚠️</>
+              ) : (
+                <>Quick Add ({quantityInput || '1'} {product.unit})</>
+              )}
             </Button>
           </div>
         </CardContent>
