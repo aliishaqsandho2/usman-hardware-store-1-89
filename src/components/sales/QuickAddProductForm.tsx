@@ -1,14 +1,15 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AlertTriangle, Package, Plus } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { productsApi } from "@/services/api";
+import { productsApi, categoriesApi, unitsApi } from "@/services/api";
 
 interface QuickAddProductFormProps {
   open: boolean;
@@ -23,22 +24,54 @@ export const QuickAddProductForm: React.FC<QuickAddProductFormProps> = ({
 }) => {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
+  const [categories, setCategories] = useState<string[]>([]);
+  const [units, setUnits] = useState<any[]>([]);
   const [formData, setFormData] = useState({
     name: '',
+    sku: '',
     price: '',
     estimatedStock: '',
-    unit: 'pieces',
+    unit: '',
     category: '',
     notes: ''
   });
 
+  useEffect(() => {
+    if (open) {
+      fetchCategories();
+      fetchUnits();
+    }
+  }, [open]);
+
+  const fetchCategories = async () => {
+    try {
+      const response = await categoriesApi.getAll();
+      if (response.success && response.data) {
+        setCategories(response.data);
+      }
+    } catch (error) {
+      console.error('Failed to fetch categories:', error);
+    }
+  };
+
+  const fetchUnits = async () => {
+    try {
+      const response = await unitsApi.getAll();
+      if (response.success && response.data) {
+        setUnits(response.data);
+      }
+    } catch (error) {
+      console.error('Failed to fetch units:', error);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formData.name || !formData.price) {
+    if (!formData.name || !formData.price || !formData.sku) {
       toast({
         title: "Missing Required Fields",
-        description: "Product name and price are required",
+        description: "Product name, SKU, and price are required",
         variant: "destructive"
       });
       return;
@@ -46,19 +79,16 @@ export const QuickAddProductForm: React.FC<QuickAddProductFormProps> = ({
 
     setLoading(true);
     try {
-      // Generate a temporary SKU
-      const tempSku = `TEMP-${Date.now()}`;
-      
       const productData = {
         name: formData.name,
-        sku: tempSku,
+        sku: formData.sku,
         price: parseFloat(formData.price),
         stock: parseFloat(formData.estimatedStock) || 0,
-        unit: formData.unit,
+        unit: formData.unit || 'pieces',
         category: formData.category || 'Miscellaneous',
-        description: `INCOMPLETE ENTRY - Added during sale. Original notes: ${formData.notes}`,
+        description: `INCOMPLETE ENTRY - Added during sale. Notes: ${formData.notes}`,
         status: 'active',
-        isIncomplete: true, // Flag to mark this as incomplete
+        isIncomplete: true,
         quickAddDate: new Date().toISOString(),
         minStock: 0
       };
@@ -73,9 +103,10 @@ export const QuickAddProductForm: React.FC<QuickAddProductFormProps> = ({
         // Reset form
         setFormData({
           name: '',
+          sku: '',
           price: '',
           estimatedStock: '',
-          unit: 'pieces',
+          unit: '',
           category: '',
           notes: ''
         });
@@ -147,6 +178,20 @@ export const QuickAddProductForm: React.FC<QuickAddProductFormProps> = ({
             />
           </div>
 
+          <div className="space-y-2">
+            <Label htmlFor="sku" className="text-sm font-medium">
+              SKU *
+            </Label>
+            <Input
+              id="sku"
+              placeholder="Enter product SKU..."
+              value={formData.sku}
+              onChange={(e) => handleInputChange('sku', e.target.value)}
+              required
+              className="h-9"
+            />
+          </div>
+
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2">
               <Label htmlFor="price" className="text-sm font-medium">
@@ -168,13 +213,18 @@ export const QuickAddProductForm: React.FC<QuickAddProductFormProps> = ({
               <Label htmlFor="unit" className="text-sm font-medium">
                 Unit
               </Label>
-              <Input
-                id="unit"
-                placeholder="pieces, kg, etc."
-                value={formData.unit}
-                onChange={(e) => handleInputChange('unit', e.target.value)}
-                className="h-9"
-              />
+              <Select value={formData.unit} onValueChange={(value) => handleInputChange('unit', value)}>
+                <SelectTrigger className="h-9">
+                  <SelectValue placeholder="Select unit" />
+                </SelectTrigger>
+                <SelectContent>
+                  {units.map((unit) => (
+                    <SelectItem key={unit.name} value={unit.name}>
+                      {unit.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
 
@@ -198,13 +248,18 @@ export const QuickAddProductForm: React.FC<QuickAddProductFormProps> = ({
               <Label htmlFor="category" className="text-sm font-medium">
                 Category
               </Label>
-              <Input
-                id="category"
-                placeholder="e.g., Hardware"
-                value={formData.category}
-                onChange={(e) => handleInputChange('category', e.target.value)}
-                className="h-9"
-              />
+              <Select value={formData.category} onValueChange={(value) => handleInputChange('category', value)}>
+                <SelectTrigger className="h-9">
+                  <SelectValue placeholder="Select category" />
+                </SelectTrigger>
+                <SelectContent>
+                  {categories.map((category) => (
+                    <SelectItem key={category} value={category}>
+                      {category}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
 

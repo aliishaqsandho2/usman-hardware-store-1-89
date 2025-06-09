@@ -416,7 +416,7 @@ const Sales = () => {
               </h2>
             </div>
             
-            {/* Search and Quick Add Info */}
+            {/* Search and Filters */}
             <div className="space-y-3 mb-4">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
@@ -426,19 +426,6 @@ const Sales = () => {
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="pl-10 h-9 md:h-10 bg-background border-input text-sm"
                 />
-              </div>
-
-              {/* Quick Add Info Banner */}
-              <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-700 p-3 rounded-lg">
-                <div className="flex items-start gap-2">
-                  <PackagePlus className="h-4 w-4 text-green-600 mt-0.5 flex-shrink-0" />
-                  <div className="text-sm">
-                    <p className="font-medium text-green-800 dark:text-green-200">Can't find a product?</p>
-                    <p className="text-green-700 dark:text-green-300 text-xs mt-1">
-                      Use "Add Product" button to quickly add new products during sale. You can update complete details later.
-                    </p>
-                  </div>
-                </div>
               </div>
             </div>
 
