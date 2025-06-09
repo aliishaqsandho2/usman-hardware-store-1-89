@@ -43,6 +43,7 @@ const Sales = () => {
   const [orderStatus, setOrderStatus] = useState("completed");
   const [quantityInputs, setQuantityInputs] = useState<{[key: number]: string}>({});
   const [isCartOpen, setIsCartOpen] = useState(false);
+  const [isCustomerDialogOpen, setIsCustomerDialogOpen] = useState(false);
 
   useEffect(() => {
     fetchProducts();
@@ -447,17 +448,17 @@ const Sales = () => {
         </div>
       </div>
 
-      {/* Desktop Cart Sidebar - Updated to use CartSidebar component */}
+      {/* Desktop Cart Sidebar */}
       <div className={`${isMobile ? 'hidden' : ''}`}>
         <CartSidebar
           cart={cart}
           selectedCustomer={selectedCustomer}
           customers={customers}
           orderStatus={orderStatus}
-          isCustomerDialogOpen={false}
+          isCustomerDialogOpen={isCustomerDialogOpen}
           isQuickCustomerOpen={isQuickCustomerOpen}
           onSetSelectedCustomer={setSelectedCustomer}
-          onSetIsCustomerDialogOpen={() => {}}
+          onSetIsCustomerDialogOpen={setIsCustomerDialogOpen}
           onSetIsQuickCustomerOpen={setIsQuickCustomerOpen}
           onSetOrderStatus={setOrderStatus}
           onUpdateCartQuantity={updateCartQuantity}
@@ -467,7 +468,7 @@ const Sales = () => {
         />
       </div>
 
-      {/* Mobile Cart Overlay - Updated to remove tax */}
+      {/* Mobile Cart Overlay */}
       {isMobile && isCartOpen && (
         <div className="fixed inset-0 z-50 md:hidden">
           <div className="fixed inset-0 bg-black/50" onClick={() => setIsCartOpen(false)} />
@@ -542,7 +543,7 @@ const Sales = () => {
                 )}
               </div>
 
-              {/* Mobile Checkout - Remove tax */}
+              {/* Mobile Checkout */}
               {cart.length > 0 && (
                 <div className="p-4 border-t bg-background">
                   <div className="space-y-2 mb-4">

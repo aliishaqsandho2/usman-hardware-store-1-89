@@ -31,7 +31,6 @@ export const ProductDetailsModal: React.FC<ProductDetailsModalProps> = ({
   const fetchProductSalesData = async () => {
     try {
       setLoading(true);
-      // Fetch all sales and filter by product (since we don't have a direct product sales endpoint)
       const response = await salesApi.getAll({ limit: 1000 });
       if (response.success) {
         const allSales = response.data?.sales || response.data || [];
@@ -72,7 +71,11 @@ export const ProductDetailsModal: React.FC<ProductDetailsModalProps> = ({
           stats[customerKey].totalQuantity += sale.quantity || 0;
           stats[customerKey].totalValue += sale.totalPrice || 0;
           stats[customerKey].purchaseCount += 1;
-          stats[customerKey].averagePrice = stats[customerKey].totalValue / stats[customerKey].totalQuantity;
+          
+          // Calculate average price per unit
+          if (stats[customerKey].totalQuantity > 0) {
+            stats[customerKey].averagePrice = stats[customerKey].totalValue / stats[customerKey].totalQuantity;
+          }
           
           // Keep the most recent purchase date
           if (new Date(sale.saleDate) > new Date(stats[customerKey].lastPurchase)) {
@@ -90,18 +93,25 @@ export const ProductDetailsModal: React.FC<ProductDetailsModalProps> = ({
   };
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
-    });
+    if (!dateString) return 'N/A';
+    try {
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) return 'N/A';
+      return date.toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric'
+      });
+    } catch (error) {
+      return 'N/A';
+    }
   };
 
   const formatCurrency = (value: number | undefined | null) => {
     if (value === undefined || value === null || isNaN(value)) {
-      return 'N/A';
+      return '0';
     }
-    return value.toLocaleString();
+    return Math.round(value).toLocaleString();
   };
 
   const totalSold = salesData.reduce((sum, sale) => sum + (sale.quantity || 0), 0);
@@ -162,7 +172,6 @@ export const ProductDetailsModal: React.FC<ProductDetailsModalProps> = ({
                           Last purchase: {formatDate(customer.lastPurchase)}
                         </div>
                       </div>
-                      <Badge variant="secondary">{customer.purchaseCount} orders</Badge>
                     </div>
                     <div className="grid grid-cols-3 gap-4 text-sm">
                       <div>
