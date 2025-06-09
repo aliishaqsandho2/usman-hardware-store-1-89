@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -9,7 +8,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { productsApi } from "@/services/api";
-import { Package, AlertTriangle } from "lucide-react";
+import { Package, AlertTriangle, RefreshCw } from "lucide-react";
+import { generateSKU } from "@/utils/skuGenerator";
 
 interface QuickProductAddModalProps {
   open: boolean;
@@ -157,10 +157,25 @@ export const QuickProductAddModal: React.FC<QuickProductAddModalProps> = ({
   };
 
   const handleInputChange = (field: string, value: string | boolean) => {
-    setFormData(prev => ({
-      ...prev,
-      [field]: value
-    }));
+    setFormData(prev => {
+      const newData = { ...prev, [field]: value };
+      
+      // Auto-generate SKU when name changes
+      if (field === 'name' && typeof value === 'string') {
+        newData.sku = generateSKU(value);
+      }
+      
+      return newData;
+    });
+  };
+
+  const handleRegenerateSKU = () => {
+    if (formData.name) {
+      setFormData(prev => ({
+        ...prev,
+        sku: generateSKU(prev.name)
+      }));
+    }
   };
 
   return (
@@ -192,15 +207,27 @@ export const QuickProductAddModal: React.FC<QuickProductAddModalProps> = ({
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <Label htmlFor="sku" className="text-sm font-medium">
-                  SKU *
+                  SKU * (Auto-generated)
                 </Label>
-                <Input
-                  id="sku"
-                  value={formData.sku}
-                  onChange={(e) => handleInputChange('sku', e.target.value)}
-                  placeholder="Product SKU"
-                  className="mt-1"
-                />
+                <div className="flex gap-1 mt-1">
+                  <Input
+                    id="sku"
+                    value={formData.sku}
+                    onChange={(e) => handleInputChange('sku', e.target.value)}
+                    placeholder="Auto-generated from name"
+                    className="flex-1"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={handleRegenerateSKU}
+                    disabled={!formData.name}
+                    className="px-2"
+                  >
+                    <RefreshCw className="h-3 w-3" />
+                  </Button>
+                </div>
               </div>
               
               <div>
