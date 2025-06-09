@@ -53,7 +53,7 @@ export const QuickProductAddModal: React.FC<QuickProductAddModalProps> = ({
     try {
       setLoading(true);
       
-      // Prepare product data with incomplete quantity handling
+      // Prepare product data - only send fields the backend expects
       const productData = {
         name: formData.name.trim(),
         sku: formData.sku.trim(),
@@ -62,12 +62,7 @@ export const QuickProductAddModal: React.FC<QuickProductAddModalProps> = ({
         stock: formData.incompleteQuantity ? 0 : (parseFloat(formData.stock) || 0),
         unit: formData.unit,
         description: formData.description.trim(),
-        status: 'active',
-        // Add special fields for incomplete quantity tracking
-        incompleteQuantity: formData.incompleteQuantity,
-        quantityNote: formData.incompleteQuantity ? formData.quantityNote : '',
-        addedFromSales: true, // Flag to identify products added from sales page
-        needsQuantityUpdate: formData.incompleteQuantity
+        status: 'active'
       };
 
       console.log('Creating quick product:', productData);
@@ -75,7 +70,16 @@ export const QuickProductAddModal: React.FC<QuickProductAddModalProps> = ({
       const response = await productsApi.create(productData);
       
       if (response.success) {
-        onProductAdded(response.data);
+        // Enhance the product data with our frontend tracking fields
+        const enhancedProduct = {
+          ...response.data,
+          incompleteQuantity: formData.incompleteQuantity,
+          quantityNote: formData.incompleteQuantity ? formData.quantityNote : '',
+          addedFromSales: true,
+          needsQuantityUpdate: formData.incompleteQuantity
+        };
+
+        onProductAdded(enhancedProduct);
         
         // Reset form
         setFormData({
@@ -101,9 +105,20 @@ export const QuickProductAddModal: React.FC<QuickProductAddModalProps> = ({
       }
     } catch (error) {
       console.error('Failed to create product:', error);
+      
+      // More specific error handling
+      let errorMessage = 'An error occurred while adding the product';
+      if (error.message.includes('400')) {
+        errorMessage = 'Invalid product data. Please check all fields are filled correctly.';
+      } else if (error.message.includes('409')) {
+        errorMessage = 'A product with this SKU already exists.';
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
       toast({
         title: "Failed to Add Product",
-        description: error.message || 'An error occurred while adding the product',
+        description: errorMessage,
         variant: "destructive"
       });
     } finally {
