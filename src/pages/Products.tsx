@@ -19,6 +19,9 @@ import {
 import { Package, Search, Plus, Edit, Trash2, AlertTriangle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { productsApi, categoriesApi, unitsApi } from "@/services/api";
+import { ProductDetailsModal } from "@/components/sales/ProductDetailsModal";
+import { FilteredProductsModal } from "@/components/FilteredProductsModal";
+import { Eye } from "lucide-react";
 
 const Products = () => {
   const { toast } = useToast();
@@ -40,6 +43,15 @@ const Products = () => {
     totalPages: 1,
     totalItems: 0,
     itemsPerPage: 20
+  });
+  const [filteredProductsModal, setFilteredProductsModal] = useState({
+    open: false,
+    title: '',
+    filterType: 'all' as 'lowStock' | 'outOfStock' | 'inStock' | 'all'
+  });
+  const [productDetailsModal, setProductDetailsModal] = useState({
+    open: false,
+    product: null as any
   });
 
   useEffect(() => {
@@ -364,6 +376,21 @@ const Products = () => {
     );
   };
 
+  const openFilteredModal = (filterType: 'lowStock' | 'outOfStock' | 'inStock' | 'all', title: string) => {
+    setFilteredProductsModal({
+      open: true,
+      title,
+      filterType
+    });
+  };
+
+  const openProductDetails = (product: any) => {
+    setProductDetailsModal({
+      open: true,
+      product
+    });
+  };
+
   if (loading && products.length === 0) {
     return (
       <div className="flex-1 p-6 space-y-6 min-h-screen bg-background">
@@ -469,9 +496,9 @@ const Products = () => {
         </div>
       </div>
 
-      {/* Summary Cards */}
+      {/* Summary Cards - Make them clickable */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <Card className="border-l-4 border-l-blue-500">
+        <Card className="border-l-4 border-l-blue-500 cursor-pointer hover:shadow-lg transition-shadow" onClick={() => openFilteredModal('all', 'All Products')}>
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
               <Package className="h-8 w-8 text-blue-500" />
@@ -483,7 +510,7 @@ const Products = () => {
           </CardContent>
         </Card>
 
-        <Card className="border-l-4 border-l-green-500">
+        <Card className="border-l-4 border-l-green-500 cursor-pointer hover:shadow-lg transition-shadow" onClick={() => openFilteredModal('inStock', 'Products In Stock')}>
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
               <Package className="h-8 w-8 text-green-500" />
@@ -495,7 +522,7 @@ const Products = () => {
           </CardContent>
         </Card>
 
-        <Card className="border-l-4 border-l-red-500">
+        <Card className="border-l-4 border-l-red-500 cursor-pointer hover:shadow-lg transition-shadow" onClick={() => openFilteredModal('lowStock', 'Low Stock Products')}>
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
               <AlertTriangle className="h-8 w-8 text-red-500" />
@@ -507,7 +534,7 @@ const Products = () => {
           </CardContent>
         </Card>
 
-        <Card className="border-l-4 border-l-purple-500">
+        <Card className="border-l-4 border-l-purple-500 cursor-pointer hover:shadow-lg transition-shadow" onClick={() => openFilteredModal('all', 'All Categories')}>
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
               <Package className="h-8 w-8 text-purple-500" />
@@ -549,7 +576,7 @@ const Products = () => {
         </CardContent>
       </Card>
 
-      {/* Products Grid */}
+      {/* Products Grid - Add details icon */}
       <Card className="flex-1">
         <CardHeader>
           <CardTitle>
@@ -582,9 +609,19 @@ const Products = () => {
                             <h3 className="font-medium text-foreground text-sm">{product.name}</h3>
                             <p className="text-xs text-muted-foreground">SKU: {product.sku}</p>
                           </div>
-                          <Badge className={`text-xs ${getCategoryColor(product.category)}`}>
-                            {product.category}
-                          </Badge>
+                          <div className="flex items-center gap-1">
+                            <Badge className={`text-xs ${getCategoryColor(product.category)}`}>
+                              {product.category}
+                            </Badge>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-6 w-6 p-0"
+                              onClick={() => openProductDetails(product)}
+                            >
+                              <Eye className="h-3 w-3" />
+                            </Button>
+                          </div>
                         </div>
                         
                         <div className="flex justify-between items-center">
@@ -658,6 +695,22 @@ const Products = () => {
           />
         </Dialog>
       )}
+
+      {/* Filtered Products Modal */}
+      <FilteredProductsModal
+        open={filteredProductsModal.open}
+        onOpenChange={(open) => setFilteredProductsModal(prev => ({ ...prev, open }))}
+        title={filteredProductsModal.title}
+        products={products}
+        filterType={filteredProductsModal.filterType}
+      />
+
+      {/* Product Details Modal */}
+      <ProductDetailsModal
+        open={productDetailsModal.open}
+        onOpenChange={(open) => setProductDetailsModal(prev => ({ ...prev, open }))}
+        product={productDetailsModal.product}
+      />
     </div>
   );
 };
