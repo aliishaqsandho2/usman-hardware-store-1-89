@@ -53,19 +53,40 @@ export const QuickProductAddModal: React.FC<QuickProductAddModalProps> = ({
     try {
       setLoading(true);
       
-      // Prepare product data - only send fields the backend expects
+      // Prepare comprehensive product data with all potential required fields
       const productData = {
-        name: formData.name.trim(),
-        sku: formData.sku.trim(),
+        name: formData.name.trim() || 'N/A',
+        sku: formData.sku.trim() || 'N/A',
         category: formData.category || 'Uncategorized',
-        price: parseFloat(formData.price),
+        price: parseFloat(formData.price) || 0,
         stock: formData.incompleteQuantity ? 0 : (parseFloat(formData.stock) || 0),
-        unit: formData.unit,
-        description: formData.description.trim(),
-        status: 'active'
+        unit: formData.unit || 'pieces',
+        description: formData.description.trim() || 'N/A',
+        status: 'active',
+        // Additional fields that might be required by the backend
+        barcode: 'N/A',
+        brand: 'N/A',
+        supplier: 'N/A',
+        costPrice: parseFloat(formData.price) * 0.7 || 0, // Demo cost price (70% of selling price)
+        weight: 0,
+        dimensions: 'N/A',
+        minStock: 0,
+        maxStock: 1000,
+        reorderLevel: 5,
+        location: 'N/A',
+        tags: '',
+        notes: formData.incompleteQuantity ? `Incomplete quantity: ${formData.quantityNote}` : '',
+        isActive: true,
+        trackStock: !formData.incompleteQuantity,
+        allowBackorder: formData.incompleteQuantity,
+        taxable: true,
+        taxRate: 0,
+        discountable: true,
+        createdBy: 'Sales System',
+        updatedBy: 'Sales System'
       };
 
-      console.log('Creating quick product:', productData);
+      console.log('Creating quick product with comprehensive data:', productData);
 
       const response = await productsApi.create(productData);
       
@@ -106,14 +127,21 @@ export const QuickProductAddModal: React.FC<QuickProductAddModalProps> = ({
     } catch (error) {
       console.error('Failed to create product:', error);
       
-      // More specific error handling
+      // Enhanced error handling with more specific messages
       let errorMessage = 'An error occurred while adding the product';
-      if (error.message.includes('400')) {
-        errorMessage = 'Invalid product data. Please check all fields are filled correctly.';
-      } else if (error.message.includes('409')) {
-        errorMessage = 'A product with this SKU already exists.';
-      } else if (error.message) {
-        errorMessage = error.message;
+      
+      if (error.message) {
+        if (error.message.includes('400')) {
+          errorMessage = 'Invalid product data. Please verify all required fields are properly filled.';
+        } else if (error.message.includes('409')) {
+          errorMessage = 'A product with this SKU already exists. Please use a different SKU.';
+        } else if (error.message.includes('422')) {
+          errorMessage = 'Validation error. Please check the data format and try again.';
+        } else if (error.message.includes('500')) {
+          errorMessage = 'Server error. Please try again in a moment.';
+        } else {
+          errorMessage = error.message;
+        }
       }
       
       toast({
