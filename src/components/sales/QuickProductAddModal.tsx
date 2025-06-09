@@ -31,6 +31,7 @@ export const QuickProductAddModal: React.FC<QuickProductAddModalProps> = ({
     sku: '',
     category: '',
     price: '',
+    costPrice: '',
     stock: '',
     unit: 'pieces',
     description: '',
@@ -67,10 +68,10 @@ export const QuickProductAddModal: React.FC<QuickProductAddModalProps> = ({
         barcode: 'N/A',
         brand: 'N/A',
         supplier: 'N/A',
-        costPrice: parseFloat(formData.price) * 0.7 || 0, // Demo cost price (70% of selling price)
+        costPrice: parseFloat(formData.costPrice) || (parseFloat(formData.price) * 0.7) || 0,
         weight: 0,
         dimensions: 'N/A',
-        minStock: 0,
+        minStock: 5,
         maxStock: 1000,
         reorderLevel: 5,
         location: 'N/A',
@@ -108,6 +109,7 @@ export const QuickProductAddModal: React.FC<QuickProductAddModalProps> = ({
           sku: '',
           category: '',
           price: '',
+          costPrice: '',
           stock: '',
           unit: 'pieces',
           description: '',
@@ -215,6 +217,21 @@ export const QuickProductAddModal: React.FC<QuickProductAddModalProps> = ({
                   className="mt-1"
                 />
               </div>
+            </div>
+
+            <div>
+              <Label htmlFor="costPrice" className="text-sm font-medium">
+                Cost Price (PKR)
+              </Label>
+              <Input
+                id="costPrice"
+                type="number"
+                step="0.01"
+                value={formData.costPrice}
+                onChange={(e) => handleInputChange('costPrice', e.target.value)}
+                placeholder="Enter cost price"
+                className="mt-1"
+              />
             </div>
 
             <div className="grid grid-cols-2 gap-3">
