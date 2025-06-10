@@ -1,3 +1,4 @@
+
 const BASE_URL = 'https://zaidawn.site/wp-json/ims/v1';
 
 // API response types
@@ -330,6 +331,39 @@ export const inventoryApi = {
       method: 'POST',
       body: JSON.stringify(restock),
     }),
+};
+
+// Reports API
+export const reportsApi = {
+  getInventoryReport: () => apiRequest<ApiResponse<any>>('/reports/inventory'),
+  getSalesReport: (params?: {
+    period?: string;
+    dateFrom?: string;
+    dateTo?: string;
+    groupBy?: string;
+  }) => {
+    const queryParams = new URLSearchParams();
+    if (params) {
+      Object.entries(params).forEach(([key, value]) => {
+        if (value) queryParams.append(key, value.toString());
+      });
+    }
+    const query = queryParams.toString();
+    return apiRequest<any>(`/reports/sales${query ? `?${query}` : ''}`);
+  },
+  getFinancialReport: (params?: {
+    period?: string;
+    year?: string;
+  }) => {
+    const queryParams = new URLSearchParams();
+    if (params) {
+      Object.entries(params).forEach(([key, value]) => {
+        if (value) queryParams.append(key, value.toString());
+      });
+    }
+    const query = queryParams.toString();
+    return apiRequest<any>(`/reports/financial${query ? `?${query}` : ''}`);
+  },
 };
 
 // Notifications API

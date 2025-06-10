@@ -19,7 +19,7 @@ import {
 } from "@/components/ui/pagination";
 import { Package, Search, Plus, Edit, Trash2, AlertTriangle, RefreshCw, DollarSign, TrendingUp, Package2, BarChart3, Calendar, Eye } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { productsApi, categoriesApi, unitsApi, inventoryApi } from "@/services/api";
+import { productsApi, categoriesApi, unitsApi, inventoryApi, reportsApi } from "@/services/api";
 import { ProductDetailsModal } from "@/components/sales/ProductDetailsModal";
 import { FilteredProductsModal } from "@/components/FilteredProductsModal";
 import { generateSKU } from "@/utils/skuGenerator";
@@ -82,57 +82,97 @@ const Products = () => {
 
   const fetchInventoryStats = async () => {
     try {
-      // Calculate detailed inventory statistics
-      let totalProducts = 0;
-      let totalValue = 0;
-      let totalRetailValue = 0;
-      let lowStockItems = 0;
-      let outOfStockItems = 0;
-      let overstockItems = 0;
-      let totalCostPrice = 0;
-      let totalSellingPrice = 0;
-
-      products.forEach(product => {
-        totalProducts++;
-        const costValue = (product.costPrice || 0) * (product.stock || 0);
-        const retailValue = (product.price || 0) * (product.stock || 0);
+      console.log('Fetching inventory stats from API...');
+      
+      // Fetch inventory report from API
+      const inventoryReport = await reportsApi.getInventoryReport();
+      console.log('Inventory report response:', inventoryReport);
+      
+      // Fetch inventory data for detailed calculations
+      const inventoryData = await inventoryApi.getAll({ limit: 1000 });
+      console.log('Inventory data response:', inventoryData);
+      
+      if (inventoryReport.success && inventoryReport.data) {
+        const reportData = inventoryReport.data.inventoryReport || inventoryReport.data;
+        console.log('Setting inventory stats:', reportData);
         
-        totalValue += costValue;
-        totalRetailValue += retailValue;
-        totalCostPrice += (product.costPrice || 0);
-        totalSellingPrice += (product.price || 0);
-
-        if ((product.stock || 0) === 0) {
-          outOfStockItems++;
-        } else if ((product.stock || 0) <= (product.minStock || 0)) {
-          lowStockItems++;
-        } else if ((product.maxStock || 0) > 0 && (product.stock || 0) > (product.maxStock || 0)) {
-          overstockItems++;
-        }
-      });
-
-      setInventoryStats({
-        totalProducts,
-        totalValue,
-        totalRetailValue,
-        lowStockItems,
-        outOfStockItems,
-        overstockItems,
-        averageCostPrice: totalProducts > 0 ? totalCostPrice / totalProducts : 0,
-        averageSellingPrice: totalProducts > 0 ? totalSellingPrice / totalProducts : 0,
-        inventoryTurnover: 0, // This would need sales data to calculate properly
-        deadStockValue: 0, // Would need movement data to calculate
-        fastMovingItems: 0,
-        slowMovingItems: 0
-      });
+        setInventoryStats({
+          totalProducts: reportData.totalProducts || 0,
+          totalValue: reportData.totalValue || 0,
+          totalRetailValue: reportData.totalRetailValue || 0,
+          lowStockItems: reportData.lowStockItems || 0,
+          outOfStockItems: reportData.outOfStockItems || 0,
+          overstockItems: reportData.overstockItems || 0,
+          averageCostPrice: reportData.averageCostPrice || 0,
+          averageSellingPrice: reportData.averageSellingPrice || 0,
+          inventoryTurnover: reportData.inventoryTurnover || 0,
+          deadStockValue: reportData.deadStockValue || 0,
+          fastMovingItems: reportData.fastMovingItems || 0,
+          slowMovingItems: reportData.slowMovingItems || 0
+        });
+      } else {
+        // Fallback: calculate from products data if report API doesn't work
+        console.log('Using fallback calculation from products data');
+        calculateStatsFromProducts();
+      }
     } catch (error) {
-      console.error('Failed to calculate inventory stats:', error);
+      console.error('Failed to fetch inventory stats:', error);
+      // Fallback to calculation from products
+      calculateStatsFromProducts();
     }
+  };
+
+  const calculateStatsFromProducts = () => {
+    let totalProducts = 0;
+    let totalValue = 0;
+    let totalRetailValue = 0;
+    let lowStockItems = 0;
+    let outOfStockItems = 0;
+    let overstockItems = 0;
+    let totalCostPrice = 0;
+    let totalSellingPrice = 0;
+
+    products.forEach(product => {
+      totalProducts++;
+      const costValue = (product.costPrice || 0) * (product.stock || 0);
+      const retailValue = (product.price || 0) * (product.stock || 0);
+      
+      totalValue += costValue;
+      totalRetailValue += retailValue;
+      totalCostPrice += (product.costPrice || 0);
+      totalSellingPrice += (product.price || 0);
+
+      if ((product.stock || 0) === 0) {
+        outOfStockItems++;
+      } else if ((product.stock || 0) <= (product.minStock || 0)) {
+        lowStockItems++;
+      } else if ((product.maxStock || 0) > 0 && (product.stock || 0) > (product.maxStock || 0)) {
+        overstockItems++;
+      }
+    });
+
+    setInventoryStats({
+      totalProducts,
+      totalValue,
+      totalRetailValue,
+      lowStockItems,
+      outOfStockItems,
+      overstockItems,
+      averageCostPrice: totalProducts > 0 ? totalCostPrice / totalProducts : 0,
+      averageSellingPrice: totalProducts > 0 ? totalSellingPrice / totalProducts : 0,
+      inventoryTurnover: 0,
+      deadStockValue: 0,
+      fastMovingItems: 0,
+      slowMovingItems: 0
+    });
   };
 
   const fetchMovements = async () => {
     try {
+      console.log('Fetching movements...');
       const response = await inventoryApi.getMovements({ limit: 20 });
+      console.log('Movements response:', response);
+      
       if (response.success) {
         const movementData = response.data?.movements || response.data || [];
         setMovements(Array.isArray(movementData) ? movementData : []);
@@ -145,9 +185,11 @@ const Products = () => {
 
   const fetchCategories = async () => {
     try {
+      console.log('Fetching categories...');
       const response = await categoriesApi.getAll();
+      console.log('Categories response:', response);
+      
       if (response.success && response.data) {
-        console.log('Categories response:', response.data);
         const categoryList = [
           { value: "all", label: "All Categories" }
         ];
@@ -180,9 +222,11 @@ const Products = () => {
 
   const fetchUnits = async () => {
     try {
+      console.log('Fetching units...');
       const response = await unitsApi.getAll();
+      console.log('Units response:', response);
+      
       if (response.success && response.data) {
-        console.log('Units response:', response.data);
         const unitsList: any[] = [];
         
         if (Array.isArray(response.data)) {
@@ -215,6 +259,8 @@ const Products = () => {
   const fetchProducts = async (page = 1) => {
     try {
       setLoading(true);
+      console.log('Fetching products with params:', { page, searchTerm, categoryFilter, statusFilter });
+      
       const params: any = {
         page,
         limit: 20,
@@ -227,6 +273,7 @@ const Products = () => {
       if (statusFilter === 'out') params.outOfStock = true;
 
       const response = await productsApi.getAll(params);
+      console.log('Products response:', response);
       
       if (response.success) {
         const productData = response.data.products || response.data || [];
