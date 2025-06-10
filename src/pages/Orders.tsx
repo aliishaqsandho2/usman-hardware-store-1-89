@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -8,9 +7,10 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination";
-import { Search, ShoppingCart, Eye, Calendar, DollarSign, User, Package } from "lucide-react";
+import { Search, ShoppingCart, Eye, Calendar, DollarSign, User, Package, Download, FileText, RefreshCw } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { salesApi } from "@/services/api";
+import jsPDF from 'jspdf';
 
 interface Sale {
   id: number;
@@ -40,6 +40,7 @@ const Orders = () => {
   const { toast } = useToast();
   const [orders, setOrders] = useState<Sale[]>([]);
   const [loading, setLoading] = useState(true);
+  const [exportLoading, setExportLoading] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [searchTerm, setSearchTerm] = useState("");
@@ -106,6 +107,208 @@ const Orders = () => {
     fetchOrders();
   };
 
+  const handleOrdersExportCSV = async () => {
+    try {
+      setExportLoading(true);
+      
+      // Fetch all orders for export (without pagination)
+      const response = await salesApi.getAll({ 
+        limit: 10000, // Large number to get all orders
+        page: 1
+      });
+      
+      if (response.success) {
+        const allOrders = response.data.sales || response.data || [];
+        const exportData = allOrders.map((order: Sale) => ({
+          'Order Number': order.orderNumber,
+          'Customer Name': order.customerName || 'Walk-in',
+          'Customer ID': order.customerId || 'N/A',
+          'Date': new Date(order.date).toLocaleDateString(),
+          'Time': order.time,
+          'Items Count': order.items.length,
+          'Items': order.items.map(item => `${item.productName} (${item.quantity}x)`).join('; '),
+          'Subtotal (PKR)': order.subtotal,
+          'Discount (PKR)': order.discount,
+          'Tax (PKR)': order.tax,
+          'Total (PKR)': order.total,
+          'Payment Method': order.paymentMethod,
+          'Status': order.status,
+          'Created By': order.createdBy,
+          'Created At': order.createdAt
+        }));
+
+        // Calculate summary
+        const totalSales = allOrders.reduce((sum: number, order: Sale) => sum + order.total, 0);
+        const totalOrders = allOrders.length;
+
+        // Add summary row
+        exportData.unshift({
+          'Order Number': 'SUMMARY',
+          'Customer Name': `Total Orders: ${totalOrders}`,
+          'Customer ID': `Export Date: ${new Date().toLocaleString()}`,
+          'Date': `Total Sales: PKR ${totalSales.toLocaleString()}`,
+          'Time': '',
+          'Items Count': '',
+          'Items': '',
+          'Subtotal (PKR)': '',
+          'Discount (PKR)': '',
+          'Tax (PKR)': '',
+          'Total (PKR)': '',
+          'Payment Method': '',
+          'Status': '',
+          'Created By': '',
+          'Created At': ''
+        });
+
+        // Convert to CSV
+        const headers = Object.keys(exportData[1] || {});
+        const csvContent = [
+          headers.join(','),
+          ...exportData.map(row => 
+            headers.map(header => {
+              const value = row[header as keyof typeof row];
+              return typeof value === 'string' && value.includes(',') 
+                ? `"${value}"` 
+                : value;
+            }).join(',')
+          )
+        ].join('\n');
+
+        // Download CSV
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        const url = URL.createObjectURL(blob);
+        link.setAttribute('href', url);
+        link.setAttribute('download', `orders_export_${new Date().toISOString().split('T')[0]}.csv`);
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+
+        toast({
+          title: "CSV Export Successful",
+          description: `Exported ${allOrders.length} orders with complete details.`,
+        });
+      }
+    } catch (error) {
+      console.error('Failed to export orders:', error);
+      toast({
+        title: "Export Failed",
+        description: "Failed to export orders data. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setExportLoading(false);
+    }
+  };
+
+  const handleOrdersExportPDF = async () => {
+    try {
+      setExportLoading(true);
+      
+      // Fetch all orders for export (without pagination)
+      const response = await salesApi.getAll({ 
+        limit: 10000, // Large number to get all orders
+        page: 1
+      });
+      
+      if (response.success) {
+        const allOrders = response.data.sales || response.data || [];
+        
+        // Create PDF
+        const pdf = new jsPDF();
+        const pageWidth = pdf.internal.pageSize.width;
+        const pageHeight = pdf.internal.pageSize.height;
+        const margin = 20;
+        let yPos = margin;
+
+        // Title
+        pdf.setFontSize(20);
+        pdf.setFont('helvetica', 'bold');
+        pdf.text('Orders Export Report', pageWidth / 2, yPos, { align: 'center' });
+        yPos += 15;
+
+        // Export info
+        pdf.setFontSize(10);
+        pdf.setFont('helvetica', 'normal');
+        pdf.text(`Export Date: ${new Date().toLocaleString()}`, margin, yPos);
+        yPos += 8;
+        pdf.text(`Total Orders: ${allOrders.length}`, margin, yPos);
+        yPos += 8;
+
+        // Calculate total sales
+        const totalSales = allOrders.reduce((sum: number, order: Sale) => sum + order.total, 0);
+        pdf.text(`Total Sales: PKR ${totalSales.toLocaleString()}`, margin, yPos);
+        yPos += 15;
+
+        // Table headers
+        pdf.setFontSize(8);
+        pdf.setFont('helvetica', 'bold');
+        const headers = ['Order #', 'Customer', 'Date', 'Items', 'Total', 'Status'];
+        const colWidths = [25, 35, 25, 15, 25, 20];
+        let xPos = margin;
+
+        headers.forEach((header, index) => {
+          pdf.text(header, xPos, yPos);
+          xPos += colWidths[index];
+        });
+        yPos += 8;
+
+        // Draw line under headers
+        pdf.line(margin, yPos - 2, pageWidth - margin, yPos - 2);
+        yPos += 3;
+
+        // Table data
+        pdf.setFont('helvetica', 'normal');
+        allOrders.forEach((order: Sale) => {
+          // Check if we need a new page
+          if (yPos > pageHeight - 30) {
+            pdf.addPage();
+            yPos = margin;
+          }
+
+          xPos = margin;
+          const rowData = [
+            order.orderNumber.substring(0, 12),
+            (order.customerName || 'Walk-in').substring(0, 18),
+            new Date(order.date).toLocaleDateString(),
+            order.items.length.toString(),
+            order.total.toLocaleString(),
+            order.status
+          ];
+
+          rowData.forEach((data, index) => {
+            pdf.text(data, xPos, yPos);
+            xPos += colWidths[index];
+          });
+          yPos += 6;
+        });
+
+        // Footer
+        yPos = pageHeight - 20;
+        pdf.setFontSize(8);
+        pdf.text(`Generated by Order Management System`, pageWidth / 2, yPos, { align: 'center' });
+
+        // Save PDF
+        pdf.save(`orders_export_${new Date().toISOString().split('T')[0]}.pdf`);
+
+        toast({
+          title: "PDF Export Successful",
+          description: `Exported ${allOrders.length} orders to PDF with complete details.`,
+        });
+      }
+    } catch (error) {
+      console.error('Failed to export orders to PDF:', error);
+      toast({
+        title: "PDF Export Failed",
+        description: "Failed to export orders data to PDF. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setExportLoading(false);
+    }
+  };
+
   const getStatusBadge = (status: string) => {
     switch (status) {
       case "completed":
@@ -155,11 +358,42 @@ const Orders = () => {
 
   return (
     <div className="flex-1 p-4 md:p-6 space-y-6 min-h-screen bg-slate-50">
-      <div className="flex items-center gap-4 mb-8">
-        <SidebarTrigger />
-        <div>
-          <h1 className="text-3xl font-bold text-slate-900">Orders Management</h1>
-          <p className="text-slate-600">View and manage all customer orders</p>
+      <div className="flex items-center justify-between mb-8">
+        <div className="flex items-center gap-4">
+          <SidebarTrigger />
+          <div>
+            <h1 className="text-3xl font-bold text-slate-900">Orders Management</h1>
+            <p className="text-slate-600">View and manage all customer orders</p>
+          </div>
+        </div>
+        <div className="flex gap-2">
+          <Button 
+            variant="outline" 
+            onClick={handleOrdersExportCSV}
+            disabled={exportLoading}
+            className="bg-green-600 hover:bg-green-700 text-white border-green-600"
+          >
+            {exportLoading ? (
+              <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+            ) : (
+              <Download className="h-4 w-4 mr-2" />
+            )}
+            {exportLoading ? 'Exporting...' : 'CSV Export'}
+          </Button>
+
+          <Button 
+            variant="outline" 
+            onClick={handleOrdersExportPDF}
+            disabled={exportLoading}
+            className="bg-red-600 hover:bg-red-700 text-white border-red-600"
+          >
+            {exportLoading ? (
+              <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+            ) : (
+              <FileText className="h-4 w-4 mr-2" />
+            )}
+            {exportLoading ? 'Exporting...' : 'PDF Export'}
+          </Button>
         </div>
       </div>
 
@@ -388,3 +622,5 @@ const Orders = () => {
 };
 
 export default Orders;
+
+}
