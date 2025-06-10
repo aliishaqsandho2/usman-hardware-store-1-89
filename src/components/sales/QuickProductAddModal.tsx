@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+
+import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -54,7 +55,6 @@ export const QuickProductAddModal: React.FC<QuickProductAddModalProps> = ({
     try {
       setLoading(true);
       
-      // Prepare comprehensive product data with all potential required fields
       const productData = {
         name: formData.name.trim() || 'N/A',
         sku: formData.sku.trim() || 'N/A',
@@ -64,7 +64,6 @@ export const QuickProductAddModal: React.FC<QuickProductAddModalProps> = ({
         unit: formData.unit || 'pieces',
         description: formData.description.trim() || 'N/A',
         status: 'active',
-        // Additional fields that might be required by the backend
         barcode: 'N/A',
         brand: 'N/A',
         supplier: 'N/A',
@@ -92,7 +91,6 @@ export const QuickProductAddModal: React.FC<QuickProductAddModalProps> = ({
       const response = await productsApi.create(productData);
       
       if (response.success) {
-        // Enhance the product data with our frontend tracking fields
         const enhancedProduct = {
           ...response.data,
           incompleteQuantity: formData.incompleteQuantity,
@@ -103,7 +101,6 @@ export const QuickProductAddModal: React.FC<QuickProductAddModalProps> = ({
 
         onProductAdded(enhancedProduct);
         
-        // Reset form
         setFormData({
           name: '',
           sku: '',
@@ -129,7 +126,6 @@ export const QuickProductAddModal: React.FC<QuickProductAddModalProps> = ({
     } catch (error) {
       console.error('Failed to create product:', error);
       
-      // Enhanced error handling with more specific messages
       let errorMessage = 'An error occurred while adding the product';
       
       if (error.message) {
@@ -160,7 +156,6 @@ export const QuickProductAddModal: React.FC<QuickProductAddModalProps> = ({
     setFormData(prev => {
       const newData = { ...prev, [field]: value };
       
-      // Auto-generate SKU when name changes
       if (field === 'name' && typeof value === 'string') {
         newData.sku = generateSKU(value);
       }
@@ -180,7 +175,7 @@ export const QuickProductAddModal: React.FC<QuickProductAddModalProps> = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="max-w-4xl max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Package className="h-5 w-5 text-blue-600" />
@@ -189,12 +184,10 @@ export const QuickProductAddModal: React.FC<QuickProductAddModalProps> = ({
         </DialogHeader>
         
         <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Basic Information */}
-          <div className="space-y-3">
-            <div>
-              <Label htmlFor="name" className="text-sm font-medium">
-                Product Name *
-              </Label>
+          {/* Row 1: Basic Information */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div className="md:col-span-2">
+              <Label htmlFor="name" className="text-sm font-medium">Product Name *</Label>
               <Input
                 id="name"
                 value={formData.name}
@@ -203,53 +196,46 @@ export const QuickProductAddModal: React.FC<QuickProductAddModalProps> = ({
                 className="mt-1"
               />
             </div>
+            <div>
+              <Label htmlFor="price" className="text-sm font-medium">Price (PKR) *</Label>
+              <Input
+                id="price"
+                type="number"
+                step="0.01"
+                value={formData.price}
+                onChange={(e) => handleInputChange('price', e.target.value)}
+                placeholder="0.00"
+                className="mt-1"
+              />
+            </div>
+          </div>
 
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label htmlFor="sku" className="text-sm font-medium">
-                  SKU * (Auto-generated)
-                </Label>
-                <div className="flex gap-1 mt-1">
-                  <Input
-                    id="sku"
-                    value={formData.sku}
-                    onChange={(e) => handleInputChange('sku', e.target.value)}
-                    placeholder="Auto-generated from name"
-                    className="flex-1"
-                  />
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={handleRegenerateSKU}
-                    disabled={!formData.name}
-                    className="px-2"
-                  >
-                    <RefreshCw className="h-3 w-3" />
-                  </Button>
-                </div>
-              </div>
-              
-              <div>
-                <Label htmlFor="price" className="text-sm font-medium">
-                  Price (PKR) *
-                </Label>
+          {/* Row 2: SKU and Cost */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div>
+              <Label htmlFor="sku" className="text-sm font-medium">SKU * (Auto-generated)</Label>
+              <div className="flex gap-1 mt-1">
                 <Input
-                  id="price"
-                  type="number"
-                  step="0.01"
-                  value={formData.price}
-                  onChange={(e) => handleInputChange('price', e.target.value)}
-                  placeholder="0.00"
-                  className="mt-1"
+                  id="sku"
+                  value={formData.sku}
+                  onChange={(e) => handleInputChange('sku', e.target.value)}
+                  placeholder="Auto-generated from name"
+                  className="flex-1"
                 />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={handleRegenerateSKU}
+                  disabled={!formData.name}
+                  className="px-2"
+                >
+                  <RefreshCw className="h-3 w-3" />
+                </Button>
               </div>
             </div>
-
             <div>
-              <Label htmlFor="costPrice" className="text-sm font-medium">
-                Cost Price (PKR)
-              </Label>
+              <Label htmlFor="costPrice" className="text-sm font-medium">Cost Price (PKR)</Label>
               <Input
                 id="costPrice"
                 type="number"
@@ -260,51 +246,47 @@ export const QuickProductAddModal: React.FC<QuickProductAddModalProps> = ({
                 className="mt-1"
               />
             </div>
+          </div>
 
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label htmlFor="category" className="text-sm font-medium">
-                  Category
-                </Label>
-                <Select value={formData.category} onValueChange={(value) => handleInputChange('category', value)}>
-                  <SelectTrigger className="mt-1">
-                    <SelectValue placeholder="Select category" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Uncategorized">Uncategorized</SelectItem>
-                    {categories.map((category) => (
-                      <SelectItem key={category} value={category}>
-                        {category}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div>
-                <Label htmlFor="unit" className="text-sm font-medium">
-                  Unit
-                </Label>
-                <Select value={formData.unit} onValueChange={(value) => handleInputChange('unit', value)}>
-                  <SelectTrigger className="mt-1">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="pieces">Pieces</SelectItem>
-                    <SelectItem value="kg">Kg</SelectItem>
-                    <SelectItem value="meter">Meter</SelectItem>
-                    <SelectItem value="liter">Liter</SelectItem>
-                    <SelectItem value="box">Box</SelectItem>
-                    <SelectItem value="packet">Packet</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+          {/* Row 3: Category and Unit */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div>
+              <Label htmlFor="category" className="text-sm font-medium">Category</Label>
+              <Select value={formData.category} onValueChange={(value) => handleInputChange('category', value)}>
+                <SelectTrigger className="mt-1">
+                  <SelectValue placeholder="Select category" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Uncategorized">Uncategorized</SelectItem>
+                  {categories.map((category) => (
+                    <SelectItem key={category} value={category}>
+                      {category}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label htmlFor="unit" className="text-sm font-medium">Unit</Label>
+              <Select value={formData.unit} onValueChange={(value) => handleInputChange('unit', value)}>
+                <SelectTrigger className="mt-1">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="pieces">Pieces</SelectItem>
+                  <SelectItem value="kg">Kg</SelectItem>
+                  <SelectItem value="meter">Meter</SelectItem>
+                  <SelectItem value="liter">Liter</SelectItem>
+                  <SelectItem value="box">Box</SelectItem>
+                  <SelectItem value="packet">Packet</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
 
-          {/* Quantity Management */}
-          <div className="space-y-3 border-t pt-3">
-            <div className="flex items-center space-x-2">
+          {/* Row 4: Quantity Management */}
+          <div className="border-t pt-3">
+            <div className="flex items-center space-x-2 mb-3">
               <Checkbox
                 id="incompleteQuantity"
                 checked={formData.incompleteQuantity}
@@ -316,53 +298,48 @@ export const QuickProductAddModal: React.FC<QuickProductAddModalProps> = ({
               </Label>
             </div>
 
-            {!formData.incompleteQuantity ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {!formData.incompleteQuantity ? (
+                <div>
+                  <Label htmlFor="stock" className="text-sm font-medium">Stock Quantity</Label>
+                  <Input
+                    id="stock"
+                    type="number"
+                    step="0.01"
+                    value={formData.stock}
+                    onChange={(e) => handleInputChange('stock', e.target.value)}
+                    placeholder="Enter quantity"
+                    className="mt-1"
+                  />
+                </div>
+              ) : (
+                <div>
+                  <Label htmlFor="quantityNote" className="text-sm font-medium">Quantity Note</Label>
+                  <Textarea
+                    id="quantityNote"
+                    value={formData.quantityNote}
+                    onChange={(e) => handleInputChange('quantityNote', e.target.value)}
+                    placeholder="Add a note about the incomplete quantity"
+                    className="mt-1 h-16"
+                  />
+                </div>
+              )}
+              
               <div>
-                <Label htmlFor="stock" className="text-sm font-medium">
-                  Stock Quantity
-                </Label>
-                <Input
-                  id="stock"
-                  type="number"
-                  step="0.01"
-                  value={formData.stock}
-                  onChange={(e) => handleInputChange('stock', e.target.value)}
-                  placeholder="Enter quantity"
-                  className="mt-1"
-                />
-              </div>
-            ) : (
-              <div>
-                <Label htmlFor="quantityNote" className="text-sm font-medium">
-                  Quantity Note
-                </Label>
+                <Label htmlFor="description" className="text-sm font-medium">Description</Label>
                 <Textarea
-                  id="quantityNote"
-                  value={formData.quantityNote}
-                  onChange={(e) => handleInputChange('quantityNote', e.target.value)}
-                  placeholder="Add a note about the incomplete quantity (e.g., 'Need to count inventory', 'Partial stock in warehouse')"
-                  className="mt-1 h-20"
+                  id="description"
+                  value={formData.description}
+                  onChange={(e) => handleInputChange('description', e.target.value)}
+                  placeholder="Brief product description (optional)"
+                  className="mt-1 h-16"
                 />
               </div>
-            )}
-          </div>
-
-          {/* Description */}
-          <div>
-            <Label htmlFor="description" className="text-sm font-medium">
-              Description
-            </Label>
-            <Textarea
-              id="description"
-              value={formData.description}
-              onChange={(e) => handleInputChange('description', e.target.value)}
-              placeholder="Brief product description (optional)"
-              className="mt-1 h-16"
-            />
+            </div>
           </div>
 
           {/* Form Actions */}
-          <div className="flex gap-2 pt-4">
+          <div className="flex gap-2 pt-4 border-t">
             <Button
               type="button"
               variant="outline"

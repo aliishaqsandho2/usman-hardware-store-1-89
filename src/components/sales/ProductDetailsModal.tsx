@@ -45,18 +45,21 @@ export const ProductDetailsModal: React.FC<ProductDetailsModalProps> = ({
           const productItem = sale.items.find((item: any) => item.productId === product.id);
           return {
             ...productItem,
-            saleDate: sale.saleDate,
-            customerName: sale.customerName,
+            saleDate: sale.saleDate || sale.createdAt,
+            customerName: sale.customerName || sale.customer?.name || 'Walk-in Customer',
             customerId: sale.customerId,
             saleId: sale.id,
             paymentMethod: sale.paymentMethod,
-            status: sale.status
+            status: sale.status,
+            // Calculate proper values
+            actualUnitPrice: productItem?.unitPrice || productItem?.price || product.price,
+            actualTotalPrice: (productItem?.unitPrice || productItem?.price || product.price) * (productItem?.quantity || 1)
           };
         });
 
         setSalesData(relevantSales);
 
-        // Calculate customer statistics
+        // Calculate customer statistics with proper values
         const stats: {[key: string]: any} = {};
         relevantSales.forEach((sale: any) => {
           const customerKey = sale.customerName || 'Walk-in Customer';
@@ -70,8 +73,13 @@ export const ProductDetailsModal: React.FC<ProductDetailsModalProps> = ({
               lastPurchase: sale.saleDate
             };
           }
-          stats[customerKey].totalQuantity += sale.quantity || 0;
-          stats[customerKey].totalValue += sale.totalPrice || 0;
+          
+          const quantity = sale.quantity || 1;
+          const unitPrice = sale.actualUnitPrice || 0;
+          const totalPrice = sale.actualTotalPrice || (unitPrice * quantity);
+          
+          stats[customerKey].totalQuantity += quantity;
+          stats[customerKey].totalValue += totalPrice;
           stats[customerKey].purchaseCount += 1;
           
           // Calculate average price per unit
@@ -118,10 +126,13 @@ export const ProductDetailsModal: React.FC<ProductDetailsModalProps> = ({
     return Math.round(value).toLocaleString();
   };
 
+  // Calculate totals with proper values
   const totalSold = salesData.reduce((sum, sale) => sum + (sale.quantity || 0), 0);
-  const totalRevenue = salesData.reduce((sum, sale) => sum + (sale.totalPrice || 0), 0);
+  const totalRevenue = salesData.reduce((sum, sale) => sum + (sale.actualTotalPrice || 0), 0);
   const uniqueCustomers = Object.keys(customerStats).length;
   const averageOrderValue = salesData.length > 0 ? totalRevenue / salesData.length : 0;
+  const mostRecentSale = salesData.length > 0 ? 
+    salesData.sort((a, b) => new Date(b.saleDate).getTime() - new Date(a.saleDate).getTime())[0] : null;
 
   if (!product) return null;
 
@@ -204,6 +215,11 @@ export const ProductDetailsModal: React.FC<ProductDetailsModalProps> = ({
                   <div className="text-sm text-muted-foreground">Total Orders</div>
                 </div>
               </div>
+              {mostRecentSale && (
+                <div className="mt-4 pt-3 border-t">
+                  <div className="text-sm text-muted-foreground">Last Purchase: {formatDate(mostRecentSale.saleDate)} by {mostRecentSale.customerName}</div>
+                </div>
+              )}
             </CardContent>
           </Card>
 
@@ -279,8 +295,8 @@ export const ProductDetailsModal: React.FC<ProductDetailsModalProps> = ({
                         </div>
                         <div className="text-right">
                           <div className="font-medium">{sale.quantity || 0} {product.unit || 'units'}</div>
-                          <div className="text-sm text-green-600">PKR {formatCurrency(sale.unitPrice)}/{product.unit || 'unit'}</div>
-                          <div className="text-sm font-medium">Total: PKR {formatCurrency(sale.totalPrice)}</div>
+                          <div className="text-sm text-green-600">PKR {formatCurrency(sale.actualUnitPrice)}/{product.unit || 'unit'}</div>
+                          <div className="text-sm font-medium">Total: PKR {formatCurrency(sale.actualTotalPrice)}</div>
                         </div>
                       </div>
                     </CardContent>
