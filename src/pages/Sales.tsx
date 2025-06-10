@@ -260,6 +260,12 @@ const Sales = () => {
     }
 
     try {
+      // Calculate total without tax
+      const totalAmount = cart.reduce((sum, item) => {
+        const finalPrice = item.adjustedPrice || item.price;
+        return sum + (finalPrice * item.quantity);
+      }, 0);
+
       const saleData = {
         customerId: selectedCustomer?.id || null,
         customerName: selectedCustomer?.name || "Walk-in Customer",
@@ -269,10 +275,7 @@ const Sales = () => {
           unitPrice: item.adjustedPrice || item.price, // Use adjusted price if available
           totalPrice: (item.adjustedPrice || item.price) * item.quantity
         })),
-        totalAmount: cart.reduce((sum, item) => {
-          const finalPrice = item.adjustedPrice || item.price;
-          return sum + (finalPrice * item.quantity);
-        }, 0),
+        totalAmount: totalAmount, // No tax added
         discount: 0,
         paymentMethod: paymentMethod,
         status: orderStatus,
@@ -327,7 +330,7 @@ const Sales = () => {
     return (a.name || '').localeCompare(b.name || '');
   });
 
-  // Calculate total cart items and value
+  // Calculate total cart items and value (without tax)
   const totalCartItems = cart.reduce((sum, item) => sum + item.quantity, 0);
   const totalCartValue = cart.reduce((sum, item) => {
     const finalPrice = item.adjustedPrice || item.price;
@@ -639,3 +642,5 @@ const Sales = () => {
 };
 
 export default Sales;
+
+}
