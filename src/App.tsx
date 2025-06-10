@@ -3,7 +3,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { AppSidebar } from "@/components/AppSidebar";
@@ -14,6 +14,7 @@ import Products from "./pages/Products";
 import Sales from "./pages/Sales";
 import Orders from "./pages/Orders";
 import Customers from "./pages/Customers";
+import Inventory from "./pages/Inventory";
 import Finance from "./pages/Finance";
 import Reports from "./pages/Reports";
 import NotFound from "./pages/NotFound";
@@ -51,8 +52,7 @@ const App = () => (
                     <Route path="/sales" element={<Sales />} />
                     <Route path="/orders" element={<Orders />} />
                     <Route path="/customers" element={<Customers />} />
-                    {/* Redirect Inventory to Products (merged functionality) */}
-                    <Route path="/inventory" element={<Navigate to="/products" replace />} />
+                    <Route path="/inventory" element={<Inventory />} />
                     <Route path="/suppliers" element={<Suppliers />} />
                     <Route path="/purchase-orders" element={<PurchaseOrders />} />
                     <Route path="/sales-receipts" element={<SalesReceipts />} />

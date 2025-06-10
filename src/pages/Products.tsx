@@ -7,7 +7,6 @@ import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
   Pagination,
   PaginationContent,
@@ -17,28 +16,26 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from "@/components/ui/pagination";
-import { Package, Search, Plus, Edit, Trash2, AlertTriangle, RefreshCw, DollarSign, TrendingUp, Package2, BarChart3, Calendar, Eye } from "lucide-react";
+import { Package, Search, Plus, Edit, Trash2, AlertTriangle, RefreshCw } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { productsApi, categoriesApi, unitsApi, inventoryApi, reportsApi } from "@/services/api";
+import { productsApi, categoriesApi, unitsApi } from "@/services/api";
 import { ProductDetailsModal } from "@/components/sales/ProductDetailsModal";
 import { FilteredProductsModal } from "@/components/FilteredProductsModal";
+import { Eye } from "lucide-react";
 import { generateSKU } from "@/utils/skuGenerator";
 
 const Products = () => {
   const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
-  const [statusFilter, setStatusFilter] = useState("all");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isCategoryDialogOpen, setIsCategoryDialogOpen] = useState(false);
   const [isUnitDialogOpen, setIsUnitDialogOpen] = useState(false);
-  const [isStockAdjustmentOpen, setIsStockAdjustmentOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<any>(null);
   const [products, setProducts] = useState<any[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
   const [units, setUnits] = useState<any[]>([]);
-  const [movements, setMovements] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [newCategory, setNewCategory] = useState("");
   const [newUnit, setNewUnit] = useState({ name: "", label: "" });
@@ -57,139 +54,18 @@ const Products = () => {
     open: false,
     product: null as any
   });
-  const [inventoryStats, setInventoryStats] = useState({
-    totalProducts: 0,
-    totalValue: 0,
-    totalRetailValue: 0,
-    lowStockItems: 0,
-    outOfStockItems: 0,
-    overstockItems: 0,
-    averageCostPrice: 0,
-    averageSellingPrice: 0,
-    inventoryTurnover: 0,
-    deadStockValue: 0,
-    fastMovingItems: 0,
-    slowMovingItems: 0
-  });
 
   useEffect(() => {
     fetchProducts(1);
     fetchCategories();
     fetchUnits();
-    fetchMovements();
-    fetchInventoryStats();
-  }, [searchTerm, categoryFilter, statusFilter]);
-
-  const fetchInventoryStats = async () => {
-    try {
-      console.log('Fetching inventory stats from API...');
-      
-      // Fetch inventory report from API
-      const inventoryReport = await reportsApi.getInventoryReport();
-      console.log('Inventory report response:', inventoryReport);
-      
-      // Fetch inventory data for detailed calculations
-      const inventoryData = await inventoryApi.getAll({ limit: 1000 });
-      console.log('Inventory data response:', inventoryData);
-      
-      if (inventoryReport.success && inventoryReport.data) {
-        const reportData = inventoryReport.data.inventoryReport || inventoryReport.data;
-        console.log('Setting inventory stats:', reportData);
-        
-        setInventoryStats({
-          totalProducts: reportData.totalProducts || 0,
-          totalValue: reportData.totalValue || 0,
-          totalRetailValue: reportData.totalRetailValue || 0,
-          lowStockItems: reportData.lowStockItems || 0,
-          outOfStockItems: reportData.outOfStockItems || 0,
-          overstockItems: reportData.overstockItems || 0,
-          averageCostPrice: reportData.averageCostPrice || 0,
-          averageSellingPrice: reportData.averageSellingPrice || 0,
-          inventoryTurnover: reportData.inventoryTurnover || 0,
-          deadStockValue: reportData.deadStockValue || 0,
-          fastMovingItems: reportData.fastMovingItems || 0,
-          slowMovingItems: reportData.slowMovingItems || 0
-        });
-      } else {
-        // Fallback: calculate from products data if report API doesn't work
-        console.log('Using fallback calculation from products data');
-        calculateStatsFromProducts();
-      }
-    } catch (error) {
-      console.error('Failed to fetch inventory stats:', error);
-      // Fallback to calculation from products
-      calculateStatsFromProducts();
-    }
-  };
-
-  const calculateStatsFromProducts = () => {
-    let totalProducts = 0;
-    let totalValue = 0;
-    let totalRetailValue = 0;
-    let lowStockItems = 0;
-    let outOfStockItems = 0;
-    let overstockItems = 0;
-    let totalCostPrice = 0;
-    let totalSellingPrice = 0;
-
-    products.forEach(product => {
-      totalProducts++;
-      const costValue = (product.costPrice || 0) * (product.stock || 0);
-      const retailValue = (product.price || 0) * (product.stock || 0);
-      
-      totalValue += costValue;
-      totalRetailValue += retailValue;
-      totalCostPrice += (product.costPrice || 0);
-      totalSellingPrice += (product.price || 0);
-
-      if ((product.stock || 0) === 0) {
-        outOfStockItems++;
-      } else if ((product.stock || 0) <= (product.minStock || 0)) {
-        lowStockItems++;
-      } else if ((product.maxStock || 0) > 0 && (product.stock || 0) > (product.maxStock || 0)) {
-        overstockItems++;
-      }
-    });
-
-    setInventoryStats({
-      totalProducts,
-      totalValue,
-      totalRetailValue,
-      lowStockItems,
-      outOfStockItems,
-      overstockItems,
-      averageCostPrice: totalProducts > 0 ? totalCostPrice / totalProducts : 0,
-      averageSellingPrice: totalProducts > 0 ? totalSellingPrice / totalProducts : 0,
-      inventoryTurnover: 0,
-      deadStockValue: 0,
-      fastMovingItems: 0,
-      slowMovingItems: 0
-    });
-  };
-
-  const fetchMovements = async () => {
-    try {
-      console.log('Fetching movements...');
-      const response = await inventoryApi.getMovements({ limit: 20 });
-      console.log('Movements response:', response);
-      
-      if (response.success) {
-        const movementData = response.data?.movements || response.data || [];
-        setMovements(Array.isArray(movementData) ? movementData : []);
-      }
-    } catch (error) {
-      console.error('Failed to fetch movements:', error);
-      setMovements([]);
-    }
-  };
+  }, [searchTerm, categoryFilter]);
 
   const fetchCategories = async () => {
     try {
-      console.log('Fetching categories...');
       const response = await categoriesApi.getAll();
-      console.log('Categories response:', response);
-      
       if (response.success && response.data) {
+        console.log('Categories response:', response.data);
         const categoryList = [
           { value: "all", label: "All Categories" }
         ];
@@ -222,11 +98,9 @@ const Products = () => {
 
   const fetchUnits = async () => {
     try {
-      console.log('Fetching units...');
       const response = await unitsApi.getAll();
-      console.log('Units response:', response);
-      
       if (response.success && response.data) {
+        console.log('Units response:', response.data);
         const unitsList: any[] = [];
         
         if (Array.isArray(response.data)) {
@@ -259,8 +133,6 @@ const Products = () => {
   const fetchProducts = async (page = 1) => {
     try {
       setLoading(true);
-      console.log('Fetching products with params:', { page, searchTerm, categoryFilter, statusFilter });
-      
       const params: any = {
         page,
         limit: 20,
@@ -269,11 +141,8 @@ const Products = () => {
       
       if (searchTerm) params.search = searchTerm;
       if (categoryFilter !== 'all') params.category = categoryFilter;
-      if (statusFilter === 'low') params.lowStock = true;
-      if (statusFilter === 'out') params.outOfStock = true;
 
       const response = await productsApi.getAll(params);
-      console.log('Products response:', response);
       
       if (response.success) {
         const productData = response.data.products || response.data || [];
@@ -307,7 +176,6 @@ const Products = () => {
       if (response.success) {
         setIsDialogOpen(false);
         fetchProducts();
-        fetchInventoryStats();
         toast({
           title: "Product Added",
           description: "New product has been added successfully.",
@@ -330,7 +198,6 @@ const Products = () => {
         setIsEditDialogOpen(false);
         setSelectedProduct(null);
         fetchProducts();
-        fetchInventoryStats();
         toast({
           title: "Product Updated",
           description: "Product has been updated successfully.",
@@ -353,7 +220,6 @@ const Products = () => {
       const response = await productsApi.delete(id);
       if (response.success) {
         fetchProducts();
-        fetchInventoryStats();
         toast({
           title: "Product Deleted",
           description: "Product has been removed from inventory.",
@@ -364,32 +230,6 @@ const Products = () => {
       toast({
         title: "Error",
         description: "Failed to delete product",
-        variant: "destructive"
-      });
-    }
-  };
-
-  const handleStockAdjustment = async (formData: any) => {
-    if (!selectedProduct) return;
-
-    try {
-      const response = await productsApi.adjustStock(selectedProduct.id, formData);
-      if (response.success) {
-        setIsStockAdjustmentOpen(false);
-        setSelectedProduct(null);
-        fetchProducts();
-        fetchMovements();
-        fetchInventoryStats();
-        toast({
-          title: "Stock Adjusted",
-          description: "Stock has been adjusted successfully.",
-        });
-      }
-    } catch (error) {
-      console.error('Failed to adjust stock:', error);
-      toast({
-        title: "Error",
-        description: "Failed to adjust stock",
         variant: "destructive"
       });
     }
@@ -458,13 +298,6 @@ const Products = () => {
       tools: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-100",
     };
     return colors[category] || "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-100";
-  };
-
-  const getStockStatus = (currentStock: number, minStock: number, maxStock?: number) => {
-    if (currentStock === 0) return { status: 'out', color: 'bg-red-500 text-white' };
-    if (currentStock <= minStock) return { status: 'low', color: 'bg-orange-500 text-white' };
-    if (maxStock && currentStock > maxStock) return { status: 'overstock', color: 'bg-purple-500 text-white' };
-    return { status: 'adequate', color: 'bg-green-500 text-white' };
   };
 
   const lowStockProducts = products.filter(product => product.stock <= product.minStock);
@@ -554,7 +387,7 @@ const Products = () => {
     return (
       <div className="flex-1 p-6 space-y-6 min-h-screen bg-background">
         <div className="flex items-center justify-center h-64">
-          <div className="text-lg text-muted-foreground">Loading inventory...</div>
+          <div className="text-lg text-muted-foreground">Loading products...</div>
         </div>
       </div>
     );
@@ -566,8 +399,8 @@ const Products = () => {
         <div className="flex items-center gap-4">
           <SidebarTrigger />
           <div>
-            <h1 className="text-3xl font-bold text-foreground">Inventory Management</h1>
-            <p className="text-muted-foreground">Complete inventory control and product management</p>
+            <h1 className="text-3xl font-bold text-foreground">Products Management</h1>
+            <p className="text-muted-foreground">Manage your inventory and product catalog</p>
           </div>
         </div>
         <div className="flex gap-2">
@@ -655,430 +488,184 @@ const Products = () => {
         </div>
       </div>
 
-      {/* Enhanced Inventory Analytics */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card className="border-l-4 border-l-blue-500">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <Card className="border-l-4 border-l-blue-500 cursor-pointer hover:shadow-lg transition-shadow" onClick={() => openFilteredModal('all', 'All Products')}>
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
               <Package className="h-8 w-8 text-blue-500" />
               <div>
                 <p className="text-sm text-muted-foreground">Total Products</p>
-                <p className="text-2xl font-bold text-blue-600">{inventoryStats.totalProducts}</p>
+                <p className="text-2xl font-bold text-blue-600">{pagination.totalItems}</p>
               </div>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="border-l-4 border-l-green-500">
+        <Card className="border-l-4 border-l-green-500 cursor-pointer hover:shadow-lg transition-shadow" onClick={() => openFilteredModal('inStock', 'Products In Stock')}>
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
-              <DollarSign className="h-8 w-8 text-green-500" />
+              <Package className="h-8 w-8 text-green-500" />
               <div>
-                <p className="text-sm text-muted-foreground">Total Stock Value (Cost)</p>
-                <p className="text-2xl font-bold text-green-600">PKR {inventoryStats.totalValue.toLocaleString()}</p>
+                <p className="text-sm text-muted-foreground">In Stock</p>
+                <p className="text-2xl font-bold text-green-600">{products.filter(p => p.stock > p.minStock).length}</p>
               </div>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="border-l-4 border-l-purple-500">
+        <Card className="border-l-4 border-l-red-500 cursor-pointer hover:shadow-lg transition-shadow" onClick={() => openFilteredModal('lowStock', 'Low Stock Products')}>
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
-              <BarChart3 className="h-8 w-8 text-purple-500" />
+              <AlertTriangle className="h-8 w-8 text-red-500" />
               <div>
-                <p className="text-sm text-muted-foreground">Retail Value</p>
-                <p className="text-2xl font-bold text-purple-600">PKR {inventoryStats.totalRetailValue.toLocaleString()}</p>
+                <p className="text-sm text-muted-foreground">Low Stock</p>
+                <p className="text-2xl font-bold text-red-600">{lowStockProducts.length}</p>
               </div>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="border-l-4 border-l-orange-500">
+        <Card className="border-l-4 border-l-purple-500 cursor-pointer hover:shadow-lg transition-shadow" onClick={() => openFilteredModal('all', 'All Categories')}>
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
-              <AlertTriangle className="h-8 w-8 text-orange-500" />
+              <Package className="h-8 w-8 text-purple-500" />
               <div>
-                <p className="text-sm text-muted-foreground">Stock Alerts</p>
-                <p className="text-2xl font-bold text-orange-600">{inventoryStats.lowStockItems + inventoryStats.outOfStockItems}</p>
+                <p className="text-sm text-muted-foreground">Categories</p>
+                <p className="text-2xl font-bold text-purple-600">{categories.length - 1}</p>
               </div>
             </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Additional Analytics Row */}
-      <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
-        <Card>
-          <CardContent className="p-3">
-            <div className="text-center">
-              <p className="text-sm text-muted-foreground">Avg Cost Price</p>
-              <p className="text-lg font-bold text-foreground">PKR {inventoryStats.averageCostPrice.toFixed(2)}</p>
+      <Card>
+        <CardContent className="p-4">
+          <div className="flex flex-col md:flex-row gap-4">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+              <Input
+                placeholder="Search products by name or SKU..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10"
+              />
             </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-3">
-            <div className="text-center">
-              <p className="text-sm text-muted-foreground">Avg Selling Price</p>
-              <p className="text-lg font-bold text-foreground">PKR {inventoryStats.averageSellingPrice.toFixed(2)}</p>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-3">
-            <div className="text-center">
-              <p className="text-sm text-muted-foreground">Low Stock Items</p>
-              <p className="text-lg font-bold text-orange-600">{inventoryStats.lowStockItems}</p>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-3">
-            <div className="text-center">
-              <p className="text-sm text-muted-foreground">Out of Stock</p>
-              <p className="text-lg font-bold text-red-600">{inventoryStats.outOfStockItems}</p>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-3">
-            <div className="text-center">
-              <p className="text-sm text-muted-foreground">Overstock Items</p>
-              <p className="text-lg font-bold text-purple-600">{inventoryStats.overstockItems}</p>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-3">
-            <div className="text-center">
-              <p className="text-sm text-muted-foreground">Potential Profit</p>
-              <p className="text-lg font-bold text-green-600">PKR {(inventoryStats.totalRetailValue - inventoryStats.totalValue).toLocaleString()}</p>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      <Tabs defaultValue="products" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="products">Products & Inventory</TabsTrigger>
-          <TabsTrigger value="movements">Stock Movements</TabsTrigger>
-          <TabsTrigger value="analytics">Analytics</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="products" className="space-y-4">
-          {/* Search and Filter */}
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex flex-col md:flex-row gap-4">
-                <div className="relative flex-1">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-                  <Input
-                    placeholder="Search products by name or SKU..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-10"
-                  />
-                </div>
-                <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-                  <SelectTrigger className="w-full md:w-64">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {categories.map((category) => (
-                      <SelectItem key={category.value} value={category.value}>
-                        {category.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Select value={statusFilter} onValueChange={setStatusFilter}>
-                  <SelectTrigger className="w-full md:w-48">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Status</SelectItem>
-                    <SelectItem value="low">Low Stock</SelectItem>
-                    <SelectItem value="out">Out of Stock</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Products Grid */}
-          <Card className="flex-1">
-            <CardHeader>
-              <CardTitle>
-                Product Inventory 
-                {pagination.totalItems > 0 && (
-                  <span className="text-sm font-normal text-muted-foreground ml-2">
-                    ({pagination.totalItems} total items)
-                  </span>
-                )}
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="pb-6">
-              {loading ? (
-                <div className="flex items-center justify-center h-64">
-                  <div className="text-lg text-muted-foreground">Loading...</div>
-                </div>
-              ) : products.length === 0 ? (
-                <div className="flex items-center justify-center h-64">
-                  <div className="text-lg text-muted-foreground">No products found</div>
-                </div>
-              ) : (
-                <>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 max-h-[60vh] overflow-y-auto">
-                    {products.map((product) => {
-                      const stockStatus = getStockStatus(product.stock || 0, product.minStock || 0, product.maxStock);
-                      const costValue = (product.costPrice || 0) * (product.stock || 0);
-                      const retailValue = (product.price || 0) * (product.stock || 0);
-                      
-                      return (
-                        <Card key={product.id} className="hover:shadow-lg transition-shadow">
-                          <CardContent className="p-4">
-                            <div className="space-y-3">
-                              <div className="flex justify-between items-start">
-                                <div className="flex-1">
-                                  <h3 className="font-medium text-foreground text-sm">{product.name}</h3>
-                                  <p className="text-xs text-muted-foreground">SKU: {product.sku}</p>
-                                </div>
-                                <div className="flex items-center gap-1">
-                                  <Badge className={`text-xs ${getCategoryColor(product.category)}`}>
-                                    {product.category}
-                                  </Badge>
-                                  <Button
-                                    size="sm"
-                                    variant="ghost"
-                                    className="h-6 w-6 p-0"
-                                    onClick={() => openProductDetails(product)}
-                                  >
-                                    <Eye className="h-3 w-3" />
-                                  </Button>
-                                </div>
-                              </div>
-                              
-                              <div className="grid grid-cols-2 gap-2 text-xs">
-                                <div>
-                                  <span className="text-muted-foreground">Cost:</span>
-                                  <p className="font-medium">PKR {product.costPrice?.toLocaleString() || '0'}</p>
-                                </div>
-                                <div>
-                                  <span className="text-muted-foreground">Sell:</span>
-                                  <p className="font-medium text-green-600">PKR {product.price?.toLocaleString() || '0'}</p>
-                                </div>
-                              </div>
-
-                              <div className="grid grid-cols-2 gap-2 text-xs">
-                                <div>
-                                  <span className="text-muted-foreground">Stock Value:</span>
-                                  <p className="font-medium">PKR {costValue.toLocaleString()}</p>
-                                </div>
-                                <div>
-                                  <span className="text-muted-foreground">Retail Value:</span>
-                                  <p className="font-medium text-green-600">PKR {retailValue.toLocaleString()}</p>
-                                </div>
-                              </div>
-                              
-                              <div className="flex justify-between items-center">
-                                <Badge variant={stockStatus.status === 'out' ? "destructive" : stockStatus.status === 'low' ? "secondary" : "default"} className={stockStatus.color}>
-                                  {product.stock || 0} {product.unit}s
-                                </Badge>
-                                {(product.stock || 0) <= (product.minStock || 0) && (
-                                  <AlertTriangle className="h-4 w-4 text-red-500" />
-                                )}
-                              </div>
-                              
-                              <div className="flex gap-1">
-                                <Button 
-                                  size="sm" 
-                                  variant="outline" 
-                                  className="flex-1 text-xs"
-                                  onClick={() => openEditDialog(product)}
-                                >
-                                  <Edit className="h-3 w-3 mr-1" />
-                                  Edit
-                                </Button>
-                                <Button 
-                                  size="sm" 
-                                  variant="outline" 
-                                  className="text-xs"
-                                  onClick={() => {
-                                    setSelectedProduct(product);
-                                    setIsStockAdjustmentOpen(true);
-                                  }}
-                                >
-                                  <TrendingUp className="h-3 w-3 mr-1" />
-                                  Adjust
-                                </Button>
-                                <Button 
-                                  size="sm" 
-                                  variant="outline" 
-                                  className="text-red-600 hover:text-red-700"
-                                  onClick={() => handleDeleteProduct(product.id)}
-                                >
-                                  <Trash2 className="h-3 w-3" />
-                                </Button>
-                              </div>
-                            </div>
-                          </CardContent>
-                        </Card>
-                      );
-                    })}
-                  </div>
-
-                  {pagination.totalPages > 1 && (
-                    <div className="mt-6 flex justify-center">
-                      {renderPagination()}
-                    </div>
-                  )}
-
-                  <div className="mt-4 text-center text-sm text-muted-foreground">
-                    Showing {((pagination.currentPage - 1) * pagination.itemsPerPage) + 1} to {Math.min(pagination.currentPage * pagination.itemsPerPage, pagination.totalItems)} of {pagination.totalItems} products
-                  </div>
-                </>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="movements" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Recent Stock Movements</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {movements.length === 0 ? (
-                <div className="flex items-center justify-center h-32">
-                  <p className="text-muted-foreground">No stock movements found</p>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {movements.map((movement) => (
-                    <div key={movement.id} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
-                      <div className="flex items-center gap-4">
-                        <div className={`p-2 rounded-full ${
-                          movement.type === 'sale' ? 'bg-red-100 text-red-600' :
-                          movement.type === 'purchase' ? 'bg-green-100 text-green-600' :
-                          'bg-blue-100 text-blue-600'
-                        }`}>
-                          <Package className="h-4 w-4" />
-                        </div>
-                        <div>
-                          <p className="font-medium text-foreground">{movement.productName}</p>
-                          <p className="text-sm text-muted-foreground">{movement.reason}</p>
-                          <p className="text-xs text-muted-foreground">{movement.createdAt}</p>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <p className={`font-bold ${movement.quantity > 0 ? 'text-green-600' : 'text-red-600'}`}>
-                          {movement.quantity > 0 ? '+' : ''}{movement.quantity}
-                        </p>
-                        <p className="text-sm text-muted-foreground">Balance: {movement.balanceAfter}</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="analytics" className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">Inventory Health</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Healthy Stock:</span>
-                    <span className="font-bold text-green-600">{inventoryStats.totalProducts - inventoryStats.lowStockItems - inventoryStats.outOfStockItems}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Low Stock:</span>
-                    <span className="font-bold text-orange-600">{inventoryStats.lowStockItems}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Out of Stock:</span>
-                    <span className="font-bold text-red-600">{inventoryStats.outOfStockItems}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Overstocked:</span>
-                    <span className="font-bold text-purple-600">{inventoryStats.overstockItems}</span>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">Financial Overview</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Investment:</span>
-                    <span className="font-bold">PKR {inventoryStats.totalValue.toLocaleString()}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Potential Revenue:</span>
-                    <span className="font-bold text-green-600">PKR {inventoryStats.totalRetailValue.toLocaleString()}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Potential Profit:</span>
-                    <span className="font-bold text-blue-600">PKR {(inventoryStats.totalRetailValue - inventoryStats.totalValue).toLocaleString()}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Profit Margin:</span>
-                    <span className="font-bold text-purple-600">
-                      {inventoryStats.totalRetailValue > 0 ? (((inventoryStats.totalRetailValue - inventoryStats.totalValue) / inventoryStats.totalRetailValue) * 100).toFixed(1) : 0}%
-                    </span>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">Performance Metrics</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Total Categories:</span>
-                    <span className="font-bold">{categories.length - 1}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Avg Product Value:</span>
-                    <span className="font-bold">PKR {inventoryStats.totalProducts > 0 ? (inventoryStats.totalValue / inventoryStats.totalProducts).toFixed(2) : '0'}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Stock Efficiency:</span>
-                    <span className="font-bold text-blue-600">
-                      {inventoryStats.totalProducts > 0 ? (((inventoryStats.totalProducts - inventoryStats.outOfStockItems) / inventoryStats.totalProducts) * 100).toFixed(1) : 0}%
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Alert Ratio:</span>
-                    <span className="font-bold text-orange-600">
-                      {inventoryStats.totalProducts > 0 ? (((inventoryStats.lowStockItems + inventoryStats.outOfStockItems) / inventoryStats.totalProducts) * 100).toFixed(1) : 0}%
-                    </span>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+            <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+              <SelectTrigger className="w-full md:w-64">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {categories.map((category) => (
+                  <SelectItem key={category.value} value={category.value}>
+                    {category.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
-        </TabsContent>
-      </Tabs>
+        </CardContent>
+      </Card>
 
-      {/* Dialogs */}
+      <Card className="flex-1">
+        <CardHeader>
+          <CardTitle>
+            Product Inventory 
+            {pagination.totalItems > 0 && (
+              <span className="text-sm font-normal text-muted-foreground ml-2">
+                ({pagination.totalItems} total items)
+              </span>
+            )}
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="pb-6">
+          {loading ? (
+            <div className="flex items-center justify-center h-64">
+              <div className="text-lg text-muted-foreground">Loading...</div>
+            </div>
+          ) : products.length === 0 ? (
+            <div className="flex items-center justify-center h-64">
+              <div className="text-lg text-muted-foreground">No products found</div>
+            </div>
+          ) : (
+            <>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 max-h-[60vh] overflow-y-auto">
+                {products.map((product) => (
+                  <Card key={product.id} className="hover:shadow-lg transition-shadow">
+                    <CardContent className="p-4">
+                      <div className="space-y-3">
+                        <div className="flex justify-between items-start">
+                          <div className="flex-1">
+                            <h3 className="font-medium text-foreground text-sm">{product.name}</h3>
+                            <p className="text-xs text-muted-foreground">SKU: {product.sku}</p>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <Badge className={`text-xs ${getCategoryColor(product.category)}`}>
+                              {product.category}
+                            </Badge>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-6 w-6 p-0"
+                              onClick={() => openProductDetails(product)}
+                            >
+                              <Eye className="h-3 w-3" />
+                            </Button>
+                          </div>
+                        </div>
+                        
+                        <div className="flex justify-between items-center">
+                          <span className="text-lg font-bold text-green-600">PKR {product.price?.toLocaleString()}</span>
+                          <span className="text-xs text-muted-foreground">per {product.unit}</span>
+                        </div>
+                        
+                        <div className="flex justify-between items-center">
+                          <Badge variant={product.stock <= product.minStock ? "destructive" : "default"}>
+                            {product.stock} {product.unit}s
+                          </Badge>
+                          {product.stock <= product.minStock && (
+                            <AlertTriangle className="h-4 w-4 text-red-500" />
+                          )}
+                        </div>
+                        
+                        <div className="flex gap-2">
+                          <Button 
+                            size="sm" 
+                            variant="outline" 
+                            className="flex-1"
+                            onClick={() => openEditDialog(product)}
+                          >
+                            <Edit className="h-3 w-3 mr-1" />
+                            Edit
+                          </Button>
+                          <Button 
+                            size="sm" 
+                            variant="outline" 
+                            className="text-red-600 hover:text-red-700"
+                            onClick={() => handleDeleteProduct(product.id)}
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+
+              {pagination.totalPages > 1 && (
+                <div className="mt-6 flex justify-center">
+                  {renderPagination()}
+                </div>
+              )}
+
+              <div className="mt-4 text-center text-sm text-muted-foreground">
+                Showing {((pagination.currentPage - 1) * pagination.itemsPerPage) + 1} to {Math.min(pagination.currentPage * pagination.itemsPerPage, pagination.totalItems)} of {pagination.totalItems} products
+              </div>
+            </>
+          )}
+        </CardContent>
+      </Card>
+
       {selectedProduct && (
         <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
           <ProductDialog 
@@ -1091,19 +678,6 @@ const Products = () => {
             units={units}
             initialData={selectedProduct}
             isEdit={true}
-          />
-        </Dialog>
-      )}
-
-      {selectedProduct && (
-        <Dialog open={isStockAdjustmentOpen} onOpenChange={setIsStockAdjustmentOpen}>
-          <StockAdjustmentDialog
-            product={selectedProduct}
-            onSubmit={handleStockAdjustment}
-            onClose={() => {
-              setIsStockAdjustmentOpen(false);
-              setSelectedProduct(null);
-            }}
           />
         </Dialog>
       )}
@@ -1318,96 +892,6 @@ const ProductDialog = ({
           <Button type="submit" className="flex-1">
             {isEdit ? 'Update Product' : 'Add Product'}
           </Button>
-          <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
-        </div>
-      </form>
-    </DialogContent>
-  );
-};
-
-const StockAdjustmentDialog = ({ 
-  product, 
-  onSubmit, 
-  onClose 
-}: { 
-  product: any; 
-  onSubmit: (data: any) => void; 
-  onClose: () => void;
-}) => {
-  const [formData, setFormData] = useState({
-    type: "adjustment",
-    quantity: "",
-    reason: "",
-    reference: ""
-  });
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    onSubmit({
-      ...formData,
-      quantity: parseInt(formData.quantity)
-    });
-  };
-
-  return (
-    <DialogContent>
-      <DialogHeader>
-        <DialogTitle>Stock Adjustment - {product.name}</DialogTitle>
-      </DialogHeader>
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <div>
-          <Label htmlFor="type">Adjustment Type</Label>
-          <Select value={formData.type} onValueChange={(value) => setFormData({...formData, type: value})}>
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="adjustment">Stock Adjustment</SelectItem>
-              <SelectItem value="restock">Restock</SelectItem>
-              <SelectItem value="damage">Damage</SelectItem>
-              <SelectItem value="return">Return</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div>
-          <Label htmlFor="quantity">Quantity ({product.unit})</Label>
-          <Input
-            id="quantity"
-            type="number"
-            value={formData.quantity}
-            onChange={(e) => setFormData({...formData, quantity: e.target.value})}
-            placeholder="Enter quantity (+ for increase, - for decrease)"
-            required
-          />
-          <p className="text-sm text-muted-foreground mt-1">
-            Current stock: {product.stock || 0} {product.unit}
-          </p>
-        </div>
-
-        <div>
-          <Label htmlFor="reason">Reason</Label>
-          <Input
-            id="reason"
-            value={formData.reason}
-            onChange={(e) => setFormData({...formData, reason: e.target.value})}
-            placeholder="Reason for adjustment"
-            required
-          />
-        </div>
-
-        <div>
-          <Label htmlFor="reference">Reference</Label>
-          <Input
-            id="reference"
-            value={formData.reference}
-            onChange={(e) => setFormData({...formData, reference: e.target.value})}
-            placeholder="Reference number (optional)"
-          />
-        </div>
-
-        <div className="flex gap-2">
-          <Button type="submit" className="flex-1">Adjust Stock</Button>
           <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
         </div>
       </form>
