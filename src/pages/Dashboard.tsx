@@ -239,7 +239,7 @@ export default function Dashboard() {
                       tick={{ fontSize: 12, fill: 'currentColor' }}
                       tickLine={false}
                       axisLine={false}
-                      tickFormatter={(value) => `₹${(value / 1000).toFixed(0)}k`}
+                      tickFormatter={(value) => `Rs. ${(value / 1000).toFixed(0)}k`}
                     />
                     <ChartTooltip 
                       content={<ChartTooltipContent 
@@ -320,7 +320,7 @@ export default function Dashboard() {
                       tick={{ fontSize: 12, fill: 'currentColor' }}
                       tickLine={false}
                       axisLine={false}
-                      tickFormatter={(value) => `₹${(value / 1000).toFixed(0)}k`}
+                      tickFormatter={(value) => `Rs. ${(value / 1000).toFixed(0)}k`}
                     />
                     <ChartTooltip 
                       content={<ChartTooltipContent 
@@ -587,7 +587,7 @@ export default function Dashboard() {
                     <AreaChart data={stats.performance.weeklyTrend}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" className="dark:stroke-slate-700" />
                       <XAxis dataKey="week" tick={{ fontSize: 12, fill: 'currentColor' }} />
-                      <YAxis tick={{ fontSize: 12, fill: 'currentColor' }} tickFormatter={(value) => `₹${(value / 1000).toFixed(0)}k`} />
+                      <YAxis tick={{ fontSize: 12, fill: 'currentColor' }} tickFormatter={(value) => `Rs. ${(value / 1000).toFixed(0)}k`} />
                       <ChartTooltip content={<ChartTooltipContent formatter={(value, name) => [`Rs. ${value.toLocaleString()}`, name === 'revenue' ? 'Revenue' : 'Orders']} />} />
                       <Area dataKey="revenue" fill="#10b981" stroke="#10b981" fillOpacity={0.3} />
                       <Area dataKey="orders" fill="#3b82f6" stroke="#3b82f6" fillOpacity={0.2} />
