@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -14,6 +13,7 @@ import { Separator } from "@/components/ui/separator";
 import { Users, Search, Plus, Edit, CreditCard, Phone, MapPin, Calendar, Mail, Building, IdCard, Receipt, History, AlertCircle, Banknote } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { customersApi } from "@/services/api";
+import { CustomerEditModal } from "@/components/customers/CustomerEditModal";
 
 const Customers = () => {
   const { toast } = useToast();
@@ -29,6 +29,10 @@ const Customers = () => {
     totalItems: 0,
     itemsPerPage: 20
   });
+
+  // NEW: States for customer edit modal
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [customerToEdit, setCustomerToEdit] = useState<any>(null);
 
   const customerTypes = [
     { value: "all", label: "All Customers" },
@@ -127,6 +131,26 @@ const Customers = () => {
         variant: "destructive"
       });
     }
+  };
+
+  // NEW: Handle edit customer
+  const handleEditCustomer = (customer: any) => {
+    setCustomerToEdit(customer);
+    setIsEditModalOpen(true);
+  };
+
+  // NEW: Handle customer updated
+  const handleCustomerUpdated = () => {
+    fetchCustomers();
+    setIsEditModalOpen(false);
+    setCustomerToEdit(null);
+  };
+
+  // NEW: Handle customer deleted
+  const handleCustomerDeleted = () => {
+    fetchCustomers();
+    setIsEditModalOpen(false);
+    setCustomerToEdit(null);
   };
 
   const filteredCustomers = customers.filter(customer => {
@@ -342,8 +366,16 @@ const Customers = () => {
                     className="flex-1"
                     onClick={() => setSelectedCustomer(customer)}
                   >
-                    <Edit className="h-4 w-4 mr-1" />
                     View Details
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="bg-blue-50 hover:bg-blue-100 text-blue-600 border-blue-200"
+                    onClick={() => handleEditCustomer(customer)}
+                  >
+                    <Edit className="h-4 w-4 mr-1" />
+                    Edit
                   </Button>
                 </div>
               </CardContent>
@@ -358,6 +390,17 @@ const Customers = () => {
           customer={selectedCustomer}
           onClose={() => setSelectedCustomer(null)}
           onUpdate={handleUpdateCustomer}
+        />
+      )}
+
+      {/* Customer Edit Modal */}
+      {customerToEdit && (
+        <CustomerEditModal
+          open={isEditModalOpen}
+          onOpenChange={setIsEditModalOpen}
+          customer={customerToEdit}
+          onCustomerUpdated={handleCustomerUpdated}
+          onCustomerDeleted={handleCustomerDeleted}
         />
       )}
     </div>
