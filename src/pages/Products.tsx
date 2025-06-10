@@ -16,14 +16,13 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from "@/components/ui/pagination";
-import { Package, Search, Plus, Edit, Trash2, AlertTriangle, RefreshCw, Download } from "lucide-react";
+import { Package, Search, Plus, Edit, Trash2, AlertTriangle, RefreshCw } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { productsApi, categoriesApi, unitsApi } from "@/services/api";
 import { ProductDetailsModal } from "@/components/sales/ProductDetailsModal";
 import { FilteredProductsModal } from "@/components/FilteredProductsModal";
 import { Eye } from "lucide-react";
-import { generateSKU, generateProductsPDF } from "@/utils/skuGenerator";
-import { generateProductsPDF } from "@/utils/pdfExport";
+import { generateSKU } from "@/utils/skuGenerator";
 
 const Products = () => {
   const { toast } = useToast();
@@ -384,45 +383,6 @@ const Products = () => {
     });
   };
 
-  const handleExportPDF = async () => {
-    try {
-      // Get all products for PDF export
-      const allProductsResponse = await productsApi.getAll({
-        limit: 10000, // Get all products
-        status: 'active'
-      });
-      
-      if (allProductsResponse.success) {
-        const allProducts = allProductsResponse.data.products || allProductsResponse.data || [];
-        
-        if (allProducts.length === 0) {
-          toast({
-            title: "No Data",
-            description: "No products available to export",
-            variant: "destructive"
-          });
-          return;
-        }
-        
-        generateProductsPDF(allProducts);
-        
-        toast({
-          title: "PDF Generated",
-          description: "Inventory report has been downloaded successfully",
-        });
-      } else {
-        throw new Error("Failed to fetch products");
-      }
-    } catch (error) {
-      console.error('Failed to export PDF:', error);
-      toast({
-        title: "Export Failed",
-        description: "Failed to generate PDF report",
-        variant: "destructive"
-      });
-    }
-  };
-
   if (loading && products.length === 0) {
     return (
       <div className="flex-1 p-6 space-y-6 min-h-screen bg-background">
@@ -444,15 +404,6 @@ const Products = () => {
           </div>
         </div>
         <div className="flex gap-2">
-          <Button 
-            variant="outline" 
-            onClick={handleExportPDF}
-            className="bg-green-600 hover:bg-green-700 text-white"
-          >
-            <Download className="h-4 w-4 mr-2" />
-            Export PDF
-          </Button>
-          
           <Dialog open={isCategoryDialogOpen} onOpenChange={setIsCategoryDialogOpen}>
             <DialogTrigger asChild>
               <Button variant="outline">
