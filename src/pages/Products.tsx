@@ -16,7 +16,7 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from "@/components/ui/pagination";
-import { Package, Search, Plus, Edit, Trash2, AlertTriangle, RefreshCw } from "lucide-react";
+import { Package, Search, Plus, Edit, Trash2, AlertTriangle, RefreshCw, Download } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { productsApi, categoriesApi, unitsApi } from "@/services/api";
 import { ProductDetailsModal } from "@/components/sales/ProductDetailsModal";
@@ -31,14 +31,13 @@ const Products = () => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isCategoryDialogOpen, setIsCategoryDialogOpen] = useState(false);
-  const [isUnitDialogOpen, setIsUnitDialogOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<any>(null);
   const [products, setProducts] = useState<any[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
   const [units, setUnits] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [exportLoading, setExportLoading] = useState(false);
   const [newCategory, setNewCategory] = useState("");
-  const [newUnit, setNewUnit] = useState({ name: "", label: "" });
   const [pagination, setPagination] = useState({
     currentPage: 1,
     totalPages: 1,
@@ -164,6 +163,102 @@ const Products = () => {
     }
   };
 
+  const handleStockExport = async () => {
+    try {
+      setExportLoading(true);
+      
+      // Fetch all products for export (without pagination)
+      const response = await productsApi.getAll({ 
+        limit: 10000, // Large number to get all products
+        status: 'active' 
+      });
+      
+      if (response.success) {
+        const allProducts = response.data.products || response.data || [];
+        const exportData = allProducts.map((product: any) => ({
+          'Product ID': product.id,
+          'Product Name': product.name,
+          'SKU': product.sku,
+          'Category': product.category,
+          'Current Stock': product.stock,
+          'Unit': product.unit,
+          'Price (PKR)': product.price,
+          'Cost Price (PKR)': product.costPrice || 0,
+          'Stock Value (PKR)': (product.stock * (product.costPrice || product.price)),
+          'Min Stock': product.minStock,
+          'Max Stock': product.maxStock || 'N/A',
+          'Description': product.description || 'N/A',
+          'Stock Status': product.stock <= product.minStock ? 'Low Stock' : 'In Stock',
+          'Last Updated': product.updatedAt || 'N/A',
+          'Created Date': product.createdAt || 'N/A'
+        }));
+
+        // Calculate total stock value
+        const totalStockValue = allProducts.reduce((total: number, product: any) => {
+          return total + (product.stock * (product.costPrice || product.price));
+        }, 0);
+
+        // Add summary row
+        exportData.unshift({
+          'Product ID': 'SUMMARY',
+          'Product Name': `Total Products: ${allProducts.length}`,
+          'SKU': `Export Date: ${new Date().toLocaleString()}`,
+          'Category': `Total Stock Value: PKR ${totalStockValue.toLocaleString()}`,
+          'Current Stock': '',
+          'Unit': '',
+          'Price (PKR)': '',
+          'Cost Price (PKR)': '',
+          'Stock Value (PKR)': '',
+          'Min Stock': '',
+          'Max Stock': '',
+          'Description': '',
+          'Stock Status': '',
+          'Last Updated': '',
+          'Created Date': ''
+        });
+
+        // Convert to CSV
+        const headers = Object.keys(exportData[1] || {});
+        const csvContent = [
+          headers.join(','),
+          ...exportData.map(row => 
+            headers.map(header => {
+              const value = row[header as keyof typeof row];
+              return typeof value === 'string' && value.includes(',') 
+                ? `"${value}"` 
+                : value;
+            }).join(',')
+          )
+        ].join('\n');
+
+        // Download CSV
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        const url = URL.createObjectURL(blob);
+        link.setAttribute('href', url);
+        link.setAttribute('download', `stock_export_${new Date().toISOString().split('T')[0]}.csv`);
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+
+        toast({
+          title: "Export Successful",
+          description: `Exported ${allProducts.length} products with complete stock details.`,
+        });
+      }
+    } catch (error) {
+      console.error('Failed to export stock:', error);
+      toast({
+        title: "Export Failed",
+        description: "Failed to export stock data. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setExportLoading(false);
+    }
+  };
+
   const handlePageChange = (page: number) => {
     if (page >= 1 && page <= pagination.totalPages) {
       fetchProducts(page);
@@ -254,30 +349,6 @@ const Products = () => {
       toast({
         title: "Error",
         description: "Failed to add category",
-        variant: "destructive"
-      });
-    }
-  };
-
-  const handleAddUnit = async () => {
-    if (!newUnit.name.trim() || !newUnit.label.trim()) return;
-    
-    try {
-      const response = await unitsApi.create(newUnit);
-      if (response.success) {
-        setNewUnit({ name: "", label: "" });
-        setIsUnitDialogOpen(false);
-        fetchUnits();
-        toast({
-          title: "Unit Added",
-          description: "New unit has been added successfully.",
-        });
-      }
-    } catch (error) {
-      console.error('Failed to add unit:', error);
-      toast({
-        title: "Error",
-        description: "Failed to add unit",
         variant: "destructive"
       });
     }
@@ -433,43 +504,19 @@ const Products = () => {
             </DialogContent>
           </Dialog>
 
-          <Dialog open={isUnitDialogOpen} onOpenChange={setIsUnitDialogOpen}>
-            <DialogTrigger asChild>
-              <Button variant="outline">
-                <Plus className="h-4 w-4 mr-2" />
-                Add Unit
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Add New Unit</DialogTitle>
-              </DialogHeader>
-              <div className="space-y-4">
-                <div>
-                  <Label htmlFor="unitName">Unit Name</Label>
-                  <Input
-                    id="unitName"
-                    value={newUnit.name}
-                    onChange={(e) => setNewUnit({...newUnit, name: e.target.value})}
-                    placeholder="e.g., kg, pieces"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="unitLabel">Unit Label</Label>
-                  <Input
-                    id="unitLabel"
-                    value={newUnit.label}
-                    onChange={(e) => setNewUnit({...newUnit, label: e.target.value})}
-                    placeholder="e.g., Kilograms, Pieces"
-                  />
-                </div>
-                <div className="flex gap-2">
-                  <Button onClick={handleAddUnit} className="flex-1">Add Unit</Button>
-                  <Button variant="outline" onClick={() => setIsUnitDialogOpen(false)}>Cancel</Button>
-                </div>
-              </div>
-            </DialogContent>
-          </Dialog>
+          <Button 
+            variant="outline" 
+            onClick={handleStockExport}
+            disabled={exportLoading}
+            className="bg-green-600 hover:bg-green-700 text-white border-green-600"
+          >
+            {exportLoading ? (
+              <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+            ) : (
+              <Download className="h-4 w-4 mr-2" />
+            )}
+            {exportLoading ? 'Exporting...' : 'Stock Export'}
+          </Button>
 
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogTrigger asChild>
