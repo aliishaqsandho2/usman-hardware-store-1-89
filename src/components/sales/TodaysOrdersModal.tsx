@@ -59,46 +59,51 @@ export const TodaysOrdersModal: React.FC<TodaysOrdersModalProps> = ({
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {orders.map((order) => (
-                <Card key={order.id} className="hover:shadow-md transition-shadow bg-card border-border">
-                  <CardContent className="p-4">
-                    <div className="flex justify-between items-start mb-3">
-                      <div>
-                        <div className="flex items-center gap-2 mb-1">
-                          <h3 className="font-bold text-lg text-card-foreground">#{order.orderNumber}</h3>
-                          <div className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs border ${getStatusColor(order.status)}`}>
-                            {getStatusIcon(order.status)}
-                            {order.status}
+              {orders.map((order) => {
+                // Use totalAmount if available, otherwise fall back to total (ensuring no tax included)
+                const displayTotal = order.totalAmount || order.subtotal || order.total;
+                
+                return (
+                  <Card key={order.id} className="hover:shadow-md transition-shadow bg-card border-border">
+                    <CardContent className="p-4">
+                      <div className="flex justify-between items-start mb-3">
+                        <div>
+                          <div className="flex items-center gap-2 mb-1">
+                            <h3 className="font-bold text-lg text-card-foreground">#{order.orderNumber}</h3>
+                            <div className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs border ${getStatusColor(order.status)}`}>
+                              {getStatusIcon(order.status)}
+                              {order.status}
+                            </div>
+                          </div>
+                          <p className="text-sm font-medium text-card-foreground">{order.customerName || "Walk-in Customer"}</p>
+                          <p className="text-xs text-muted-foreground">{order.time}</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-xl font-bold text-green-600">PKR {displayTotal?.toLocaleString()}</p>
+                          <p className="text-xs text-muted-foreground">{order.items?.length || 0} items</p>
+                        </div>
+                      </div>
+                      
+                      {order.items && order.items.length > 0 && (
+                        <div className="border-t border-border pt-3 mt-3">
+                          <p className="text-xs font-medium text-muted-foreground mb-2">Items:</p>
+                          <div className="space-y-1">
+                            {order.items.slice(0, 3).map((item: any, index: number) => (
+                              <div key={index} className="flex justify-between text-xs">
+                                <span className="text-card-foreground">{item.productName} x {item.quantity}</span>
+                                <span className="font-medium">PKR {(item.totalPrice || item.total)?.toLocaleString()}</span>
+                              </div>
+                            ))}
+                            {order.items.length > 3 && (
+                              <p className="text-xs text-muted-foreground">+{order.items.length - 3} more items</p>
+                            )}
                           </div>
                         </div>
-                        <p className="text-sm font-medium text-card-foreground">{order.customerName || "Walk-in Customer"}</p>
-                        <p className="text-xs text-muted-foreground">{order.time}</p>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-xl font-bold text-green-600">PKR {order.total?.toLocaleString()}</p>
-                        <p className="text-xs text-muted-foreground">{order.items?.length || 0} items</p>
-                      </div>
-                    </div>
-                    
-                    {order.items && order.items.length > 0 && (
-                      <div className="border-t border-border pt-3 mt-3">
-                        <p className="text-xs font-medium text-muted-foreground mb-2">Items:</p>
-                        <div className="space-y-1">
-                          {order.items.slice(0, 3).map((item: any, index: number) => (
-                            <div key={index} className="flex justify-between text-xs">
-                              <span className="text-card-foreground">{item.productName} x {item.quantity}</span>
-                              <span className="font-medium">PKR {item.total?.toLocaleString()}</span>
-                            </div>
-                          ))}
-                          {order.items.length > 3 && (
-                            <p className="text-xs text-muted-foreground">+{order.items.length - 3} more items</p>
-                          )}
-                        </div>
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-              ))}
+                      )}
+                    </CardContent>
+                  </Card>
+                );
+              })}
             </div>
           )}
         </div>
