@@ -250,6 +250,12 @@ export const customersApi = {
       method: 'PUT',
       body: JSON.stringify(customer),
     }),
+
+  // NEW: Delete customer endpoint
+  delete: (id: number) =>
+    apiRequest<ApiResponse<any>>(`/customers/${id}`, {
+      method: 'DELETE',
+    }),
 };
 
 // Sales API
@@ -284,6 +290,21 @@ export const salesApi = {
     apiRequest<ApiResponse<any>>(`/sales/${id}/status`, {
       method: 'PUT',
       body: JSON.stringify(status),
+    }),
+
+  // NEW: Order adjustment endpoint
+  adjustOrder: (id: number, adjustment: any) =>
+    apiRequest<ApiResponse<any>>(`/sales/${id}/adjust`, {
+      method: 'POST',
+      body: JSON.stringify(adjustment),
+    }),
+
+  // NEW: PDF receipt generation endpoint
+  generatePDF: (id: number) => 
+    apiRequest<Blob>(`/sales/${id}/pdf`, {
+      headers: {
+        'Accept': 'application/pdf',
+      },
     }),
 };
 

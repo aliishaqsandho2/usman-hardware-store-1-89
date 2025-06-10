@@ -10,6 +10,7 @@ import { Pagination, PaginationContent, PaginationItem, PaginationLink, Paginati
 import { Search, ShoppingCart, Eye, Calendar, DollarSign, User, Package, Download, FileText, RefreshCw } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { salesApi } from "@/services/api";
+import { OrderDetailsModal } from "@/components/orders/OrderDetailsModal";
 import jsPDF from 'jspdf';
 
 interface Sale {
@@ -54,6 +55,10 @@ const Orders = () => {
     totalOrders: 0,
     avgOrderValue: 0
   });
+  
+  // NEW: State for order details modal
+  const [selectedOrder, setSelectedOrder] = useState<Sale | null>(null);
+  const [isOrderDetailsOpen, setIsOrderDetailsOpen] = useState(false);
 
   useEffect(() => {
     fetchOrders();
@@ -99,6 +104,140 @@ const Orders = () => {
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  // NEW: Handle view order details
+  const handleViewOrder = (order: Sale) => {
+    setSelectedOrder(order);
+    setIsOrderDetailsOpen(true);
+  };
+
+  // NEW: Handle individual order PDF download
+  const handleOrderPDF = async (order: Sale) => {
+    try {
+      // Try backend PDF generation first
+      try {
+        const response = await salesApi.generatePDF(order.id);
+        const blob = new Blob([response], { type: 'application/pdf' });
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `order_${order.orderNumber}_receipt.pdf`;
+        document.body.appendChild(link);
+        link.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(link);
+        
+        toast({
+          title: "PDF Downloaded",
+          description: `Receipt for order ${order.orderNumber} downloaded successfully`,
+        });
+        return;
+      } catch (error) {
+        console.log('Backend PDF generation not available, using frontend generation');
+      }
+
+      // Fallback to frontend PDF generation
+      const pdf = new jsPDF();
+      const pageWidth = pdf.internal.pageSize.width;
+      let yPos = 20;
+
+      // Header
+      pdf.setFontSize(20);
+      pdf.setFont('helvetica', 'bold');
+      pdf.text('USMAN HARDWARE', pageWidth / 2, yPos, { align: 'center' });
+      yPos += 10;
+      
+      pdf.setFontSize(12);
+      pdf.setFont('helvetica', 'normal');
+      pdf.text('Hafizabad', pageWidth / 2, yPos, { align: 'center' });
+      yPos += 20;
+
+      // Order Info
+      pdf.setFontSize(16);
+      pdf.setFont('helvetica', 'bold');
+      pdf.text('SALES RECEIPT', pageWidth / 2, yPos, { align: 'center' });
+      yPos += 15;
+
+      pdf.setFontSize(10);
+      pdf.setFont('helvetica', 'normal');
+      pdf.text(`Order Number: ${order.orderNumber}`, 20, yPos);
+      pdf.text(`Date: ${new Date(order.date).toLocaleDateString()}`, pageWidth - 80, yPos);
+      yPos += 8;
+      
+      pdf.text(`Customer: ${order.customerName || 'Walk-in Customer'}`, 20, yPos);
+      pdf.text(`Time: ${order.time}`, pageWidth - 80, yPos);
+      yPos += 8;
+      
+      pdf.text(`Payment Method: ${order.paymentMethod.toUpperCase()}`, 20, yPos);
+      pdf.text(`Status: ${order.status.toUpperCase()}`, pageWidth - 80, yPos);
+      yPos += 15;
+
+      // Items Table
+      pdf.setFont('helvetica', 'bold');
+      pdf.text('Item', 20, yPos);
+      pdf.text('Qty', 80, yPos);
+      pdf.text('Rate', 110, yPos);
+      pdf.text('Amount', 150, yPos);
+      yPos += 5;
+      
+      pdf.line(20, yPos, pageWidth - 20, yPos);
+      yPos += 8;
+
+      pdf.setFont('helvetica', 'normal');
+      order.items.forEach((item: any) => {
+        pdf.text(item.productName.substring(0, 25), 20, yPos);
+        pdf.text(item.quantity.toString(), 80, yPos);
+        pdf.text(`PKR ${item.unitPrice.toFixed(2)}`, 110, yPos);
+        pdf.text(`PKR ${item.total.toFixed(2)}`, 150, yPos);
+        yPos += 6;
+      });
+
+      yPos += 5;
+      pdf.line(20, yPos, pageWidth - 20, yPos);
+      yPos += 10;
+
+      // Totals
+      pdf.setFont('helvetica', 'bold');
+      pdf.text(`Subtotal: PKR ${order.subtotal.toFixed(2)}`, 110, yPos);
+      yPos += 6;
+      
+      if (order.discount > 0) {
+        pdf.text(`Discount: PKR ${order.discount.toFixed(2)}`, 110, yPos);
+        yPos += 6;
+      }
+      
+      if (order.tax > 0) {
+        pdf.text(`Tax: PKR ${order.tax.toFixed(2)}`, 110, yPos);
+        yPos += 6;
+      }
+      
+      pdf.setFontSize(12);
+      pdf.text(`TOTAL: PKR ${order.total.toFixed(2)}`, 110, yPos);
+      yPos += 20;
+
+      // Footer
+      pdf.setFontSize(8);
+      pdf.setFont('helvetica', 'normal');
+      pdf.text('Thank you for your business!', pageWidth / 2, yPos, { align: 'center' });
+      yPos += 5;
+      pdf.text(`Generated on ${new Date().toLocaleString()}`, pageWidth / 2, yPos, { align: 'center' });
+
+      // Save PDF
+      pdf.save(`order_${order.orderNumber}_receipt.pdf`);
+      
+      toast({
+        title: "PDF Downloaded",
+        description: `Receipt for order ${order.orderNumber} downloaded successfully`,
+      });
+    } catch (error) {
+      console.error('Failed to generate PDF:', error);
+      toast({
+        title: "PDF Generation Failed",
+        description: "Failed to generate PDF receipt. Please try again.",
+        variant: "destructive"
+      });
     }
   };
 
@@ -513,7 +652,7 @@ const Orders = () => {
             />
           </div>
 
-          {/* Orders Table */}
+          {/* Orders Table - UPDATED Actions Column */}
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>
@@ -557,14 +696,26 @@ const Orders = () => {
                     <TableCell>{getPaymentMethodBadge(order.paymentMethod)}</TableCell>
                     <TableCell>{getStatusBadge(order.status)}</TableCell>
                     <TableCell>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="border-blue-300 text-blue-700 hover:bg-blue-50"
-                      >
-                        <Eye className="h-3 w-3 mr-1" />
-                        View
-                      </Button>
+                      <div className="flex gap-1">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="border-blue-300 text-blue-700 hover:bg-blue-50"
+                          onClick={() => handleViewOrder(order)}
+                        >
+                          <Eye className="h-3 w-3 mr-1" />
+                          View
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="border-red-300 text-red-700 hover:bg-red-50"
+                          onClick={() => handleOrderPDF(order)}
+                        >
+                          <FileText className="h-3 w-3 mr-1" />
+                          PDF
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -617,8 +768,18 @@ const Orders = () => {
           )}
         </CardContent>
       </Card>
+
+      {/* NEW: Order Details Modal */}
+      <OrderDetailsModal
+        open={isOrderDetailsOpen}
+        onOpenChange={setIsOrderDetailsOpen}
+        order={selectedOrder}
+        onOrderUpdated={fetchOrders}
+      />
     </div>
   );
 };
 
 export default Orders;
+
+}
