@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { ShoppingCart, User, X, Plus, Minus, UserPlus, Edit2 } from "lucide-react";
+import { ShoppingCart, User, X, Plus, Minus, UserPlus, Edit2, CreditCard } from "lucide-react";
 
 interface CartItem {
   productId: number;
@@ -24,12 +24,14 @@ interface CartSidebarProps {
   selectedCustomer: any;
   customers: any[];
   orderStatus: string;
+  paymentMethod: string;
   isCustomerDialogOpen: boolean;
   isQuickCustomerOpen: boolean;
   onSetSelectedCustomer: (customer: any) => void;
   onSetIsCustomerDialogOpen: (open: boolean) => void;
   onSetIsQuickCustomerOpen: (open: boolean) => void;
   onSetOrderStatus: (status: string) => void;
+  onSetPaymentMethod: (method: string) => void;
   onUpdateCartQuantity: (productId: number, quantity: number) => void;
   onRemoveFromCart: (productId: number) => void;
   onCheckout: () => void;
@@ -41,12 +43,14 @@ export const CartSidebar: React.FC<CartSidebarProps> = ({
   selectedCustomer,
   customers,
   orderStatus,
+  paymentMethod,
   isCustomerDialogOpen,
   isQuickCustomerOpen,
   onSetSelectedCustomer,
   onSetIsCustomerDialogOpen,
   onSetIsQuickCustomerOpen,
   onSetOrderStatus,
+  onSetPaymentMethod,
   onUpdateCartQuantity,
   onRemoveFromCart,
   onCheckout,
@@ -54,6 +58,7 @@ export const CartSidebar: React.FC<CartSidebarProps> = ({
 }) => {
   const [priceEditingItem, setPriceEditingItem] = useState<number | null>(null);
   const [tempPrice, setTempPrice] = useState<string>("");
+  const [customerSearchTerm, setCustomerSearchTerm] = useState<string>("");
 
   const getCartTotal = () => {
     return cart.reduce((total, item) => {
@@ -80,6 +85,13 @@ export const CartSidebar: React.FC<CartSidebarProps> = ({
     setPriceEditingItem(null);
     setTempPrice("");
   };
+
+  // Filter customers based on search term
+  const filteredCustomers = customers.filter(customer =>
+    customer.name?.toLowerCase().includes(customerSearchTerm.toLowerCase()) ||
+    customer.phone?.toLowerCase().includes(customerSearchTerm.toLowerCase()) ||
+    customer.email?.toLowerCase().includes(customerSearchTerm.toLowerCase())
+  );
 
   return (
     <div className="w-72 bg-card border-l border-border shadow-lg flex flex-col">
@@ -132,6 +144,27 @@ export const CartSidebar: React.FC<CartSidebarProps> = ({
             </div>
           </div>
         )}
+      </div>
+
+      {/* Payment Method Selection */}
+      <div className="p-3 border-b border-border bg-muted/50">
+        <div className="space-y-2">
+          <Label className="text-xs font-medium text-card-foreground flex items-center gap-2">
+            <CreditCard className="h-3 w-3" />
+            Payment Method
+          </Label>
+          <Select value={paymentMethod} onValueChange={onSetPaymentMethod}>
+            <SelectTrigger className="h-8 text-xs bg-background border-input">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="cash">Cash</SelectItem>
+              <SelectItem value="credit">Credit</SelectItem>
+              <SelectItem value="card">Card</SelectItem>
+              <SelectItem value="bank_transfer">Bank Transfer</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
       {/* Order Status Selection */}
@@ -269,7 +302,7 @@ export const CartSidebar: React.FC<CartSidebarProps> = ({
         )}
       </div>
 
-      {/* Checkout Section - Removed Tax */}
+      {/* Checkout Section */}
       {cart.length > 0 && (
         <div className="p-3 border-t border-border bg-card">
           <div className="space-y-2 mb-3">
@@ -285,7 +318,7 @@ export const CartSidebar: React.FC<CartSidebarProps> = ({
             className="w-full bg-green-600 hover:bg-green-700 text-white h-10 text-sm font-medium"
             size="lg"
           >
-            Complete Sale ({orderStatus})
+            Complete Sale ({paymentMethod === 'cash' ? 'Cash' : paymentMethod === 'credit' ? 'Credit' : 'Card'})
           </Button>
         </div>
       )}
@@ -299,22 +332,37 @@ export const CartSidebar: React.FC<CartSidebarProps> = ({
           <div className="space-y-3">
             <Input
               placeholder="Search customers..."
+              value={customerSearchTerm}
+              onChange={(e) => setCustomerSearchTerm(e.target.value)}
               className="mb-4 bg-background border-input"
             />
             <div className="max-h-60 overflow-y-auto space-y-2">
-              {customers.map((customer) => (
-                <div
-                  key={customer.id}
-                  className="p-3 border border-border rounded-lg cursor-pointer hover:bg-muted/50 transition-colors bg-card"
-                  onClick={() => {
-                    onSetSelectedCustomer(customer);
-                    onSetIsCustomerDialogOpen(false);
-                  }}
-                >
-                  <p className="font-medium text-card-foreground">{customer.name}</p>
-                  <p className="text-sm text-muted-foreground">{customer.phone}</p>
+              {filteredCustomers.length > 0 ? (
+                filteredCustomers.map((customer) => (
+                  <div
+                    key={customer.id}
+                    className="p-3 border border-border rounded-lg cursor-pointer hover:bg-muted/50 transition-colors bg-card"
+                    onClick={() => {
+                      onSetSelectedCustomer(customer);
+                      onSetIsCustomerDialogOpen(false);
+                      setCustomerSearchTerm("");
+                    }}
+                  >
+                    <p className="font-medium text-card-foreground">{customer.name}</p>
+                    <p className="text-sm text-muted-foreground">{customer.phone}</p>
+                    {customer.email && (
+                      <p className="text-sm text-muted-foreground">{customer.email}</p>
+                    )}
+                  </div>
+                ))
+              ) : (
+                <div className="text-center py-4 text-muted-foreground">
+                  <p>No customers found</p>
+                  {customerSearchTerm && (
+                    <p className="text-xs">Try a different search term</p>
+                  )}
                 </div>
-              ))}
+              )}
             </div>
           </div>
         </DialogContent>

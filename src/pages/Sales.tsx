@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -293,7 +292,7 @@ const Sales = () => {
         fetchTodaysOrders();
         toast({
           title: "Sale Completed Successfully",
-          description: `Order has been processed with status: ${orderStatus}. Total: PKR ${saleData.totalAmount.toFixed(2)}`,
+          description: `Order has been processed with status: ${orderStatus}. Payment: ${paymentMethod}. Total: PKR ${saleData.totalAmount.toFixed(2)}`,
         });
       } else {
         throw new Error(response.message || 'Failed to process sale');
@@ -495,12 +494,14 @@ const Sales = () => {
           selectedCustomer={selectedCustomer}
           customers={customers}
           orderStatus={orderStatus}
+          paymentMethod={paymentMethod}
           isCustomerDialogOpen={isCustomerDialogOpen}
           isQuickCustomerOpen={isQuickCustomerOpen}
           onSetSelectedCustomer={setSelectedCustomer}
           onSetIsCustomerDialogOpen={setIsCustomerDialogOpen}
           onSetIsQuickCustomerOpen={setIsQuickCustomerOpen}
           onSetOrderStatus={setOrderStatus}
+          onSetPaymentMethod={setPaymentMethod}
           onUpdateCartQuantity={updateCartQuantity}
           onRemoveFromCart={removeFromCart}
           onCheckout={handleCheckout}

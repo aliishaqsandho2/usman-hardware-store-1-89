@@ -51,6 +51,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
   };
 
   const handleQuickAdd = () => {
+    // Use quantity from input if available, otherwise default to 1
     const quantity = quantityInput && !isNaN(parseFloat(quantityInput)) ? parseFloat(quantityInput) : 1;
     onAddToCart(product, quantity);
   };
@@ -154,7 +155,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
               </Button>
             </div>
             
-            {/* Quick Add Button */}
+            {/* Quick Add Button - Now uses input quantity or defaults to 1 */}
             <Button
               onClick={handleQuickAdd}
               className={`w-full text-white text-[10px] h-6 ${

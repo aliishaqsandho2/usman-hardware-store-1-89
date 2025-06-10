@@ -4,7 +4,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { User, Package, Calendar, DollarSign, TrendingUp } from "lucide-react";
+import { User, Package, Calendar, DollarSign, TrendingUp, AlertTriangle } from "lucide-react";
 import { salesApi } from "@/services/api";
 
 interface ProductDetailsModalProps {
@@ -48,7 +48,9 @@ export const ProductDetailsModal: React.FC<ProductDetailsModalProps> = ({
             saleDate: sale.saleDate,
             customerName: sale.customerName,
             customerId: sale.customerId,
-            saleId: sale.id
+            saleId: sale.id,
+            paymentMethod: sale.paymentMethod,
+            status: sale.status
           };
         });
 
@@ -97,10 +99,12 @@ export const ProductDetailsModal: React.FC<ProductDetailsModalProps> = ({
     try {
       const date = new Date(dateString);
       if (isNaN(date.getTime())) return 'N/A';
-      return date.toLocaleDateString('en-US', {
+      return date.toLocaleDateString('en-PK', {
         year: 'numeric',
         month: 'short',
-        day: 'numeric'
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
       });
     } catch (error) {
       return 'N/A';
@@ -117,6 +121,7 @@ export const ProductDetailsModal: React.FC<ProductDetailsModalProps> = ({
   const totalSold = salesData.reduce((sum, sale) => sum + (sale.quantity || 0), 0);
   const totalRevenue = salesData.reduce((sum, sale) => sum + (sale.totalPrice || 0), 0);
   const uniqueCustomers = Object.keys(customerStats).length;
+  const averageOrderValue = salesData.length > 0 ? totalRevenue / salesData.length : 0;
 
   if (!product) return null;
 
@@ -126,17 +131,64 @@ export const ProductDetailsModal: React.FC<ProductDetailsModalProps> = ({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Package className="h-5 w-5 text-blue-600" />
-            Product Sales Details - {product.name}
+            {product.name}
+            {product.incompleteQuantity && (
+              <Badge variant="outline" className="text-orange-600 border-orange-300">
+                <AlertTriangle className="h-3 w-3 mr-1" />
+                Incomplete Info
+              </Badge>
+            )}
           </DialogTitle>
         </DialogHeader>
 
         <div className="space-y-6">
-          {/* Product Overview */}
+          {/* Product Basic Info */}
           <Card>
             <CardContent className="p-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div>
+                  <div className="text-sm text-muted-foreground">SKU</div>
+                  <div className="font-medium">{product.sku || 'N/A'}</div>
+                </div>
+                <div>
+                  <div className="text-sm text-muted-foreground">Category</div>
+                  <div className="font-medium">{product.category || 'N/A'}</div>
+                </div>
+                <div>
+                  <div className="text-sm text-muted-foreground">Price</div>
+                  <div className="font-medium text-green-600">PKR {formatCurrency(product.price)}</div>
+                </div>
+                <div>
+                  <div className="text-sm text-muted-foreground">Stock</div>
+                  <div className="font-medium">
+                    {product.incompleteQuantity ? (
+                      <span className="text-orange-600">Unknown</span>
+                    ) : (
+                      `${product.stock || 0} ${product.unit || 'units'}`
+                    )}
+                  </div>
+                </div>
+              </div>
+              {product.quantityNote && (
+                <div className="mt-3 p-2 bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-700 rounded">
+                  <div className="text-sm text-orange-800 dark:text-orange-200">
+                    <strong>Note:</strong> {product.quantityNote}
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Sales Overview */}
+          <Card>
+            <CardContent className="p-4">
+              <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
+                <TrendingUp className="h-5 w-5" />
+                Sales Overview
+              </h3>
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <div className="text-center">
-                  <div className="text-2xl font-bold text-blue-600">{totalSold} {product.unit}</div>
+                  <div className="text-2xl font-bold text-blue-600">{totalSold} {product.unit || 'units'}</div>
                   <div className="text-sm text-muted-foreground">Total Sold</div>
                 </div>
                 <div className="text-center">
@@ -156,75 +208,87 @@ export const ProductDetailsModal: React.FC<ProductDetailsModalProps> = ({
           </Card>
 
           {/* Customer Purchase Summary */}
-          <div>
-            <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
-              <User className="h-5 w-5" />
-              Customer Purchase Summary
-            </h3>
-            <div className="grid gap-3">
-              {Object.values(customerStats).map((customer: any, index) => (
-                <Card key={index} className="border-l-4 border-l-blue-500">
-                  <CardContent className="p-3">
-                    <div className="flex justify-between items-start mb-2">
-                      <div>
-                        <div className="font-medium">{customer.name}</div>
-                        <div className="text-sm text-muted-foreground">
-                          Last purchase: {formatDate(customer.lastPurchase)}
+          {Object.keys(customerStats).length > 0 && (
+            <div>
+              <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
+                <User className="h-5 w-5" />
+                Customer Purchase Summary
+              </h3>
+              <div className="grid gap-3">
+                {Object.values(customerStats).map((customer: any, index) => (
+                  <Card key={index} className="border-l-4 border-l-blue-500">
+                    <CardContent className="p-3">
+                      <div className="flex justify-between items-start mb-2">
+                        <div>
+                          <div className="font-medium">{customer.name}</div>
+                          <div className="text-sm text-muted-foreground">
+                            Last purchase: {formatDate(customer.lastPurchase)}
+                          </div>
                         </div>
                       </div>
-                    </div>
-                    <div className="grid grid-cols-3 gap-4 text-sm">
-                      <div>
-                        <div className="font-medium text-blue-600">{customer.totalQuantity} {product.unit}</div>
-                        <div className="text-muted-foreground">Total Quantity</div>
+                      <div className="grid grid-cols-3 gap-4 text-sm">
+                        <div>
+                          <div className="font-medium text-blue-600">{customer.totalQuantity} {product.unit || 'units'}</div>
+                          <div className="text-muted-foreground">Total Quantity</div>
+                        </div>
+                        <div>
+                          <div className="font-medium text-green-600">PKR {formatCurrency(customer.totalValue)}</div>
+                          <div className="text-muted-foreground">Total Value</div>
+                        </div>
+                        <div>
+                          <div className="font-medium text-purple-600">PKR {formatCurrency(customer.averagePrice)}</div>
+                          <div className="text-muted-foreground">Avg. Price/{product.unit || 'unit'}</div>
+                        </div>
                       </div>
-                      <div>
-                        <div className="font-medium text-green-600">PKR {formatCurrency(customer.totalValue)}</div>
-                        <div className="text-muted-foreground">Total Value</div>
-                      </div>
-                      <div>
-                        <div className="font-medium text-purple-600">PKR {formatCurrency(customer.averagePrice)}</div>
-                        <div className="text-muted-foreground">Avg. Price/{product.unit}</div>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Recent Sales History */}
-          <div>
-            <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
-              <TrendingUp className="h-5 w-5" />
-              Recent Sales History
-            </h3>
-            <div className="space-y-2">
-              {salesData
-                .sort((a, b) => new Date(b.saleDate).getTime() - new Date(a.saleDate).getTime())
-                .slice(0, 10)
-                .map((sale, index) => (
-                <Card key={index}>
-                  <CardContent className="p-3">
-                    <div className="flex justify-between items-center">
-                      <div className="flex items-center gap-3">
-                        <Calendar className="h-4 w-4 text-muted-foreground" />
-                        <div>
-                          <div className="font-medium">{sale.customerName || 'Walk-in Customer'}</div>
-                          <div className="text-sm text-muted-foreground">{formatDate(sale.saleDate)}</div>
+          {salesData.length > 0 && (
+            <div>
+              <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
+                <Calendar className="h-5 w-5" />
+                Recent Sales History
+              </h3>
+              <div className="space-y-2">
+                {salesData
+                  .sort((a, b) => new Date(b.saleDate).getTime() - new Date(a.saleDate).getTime())
+                  .slice(0, 10)
+                  .map((sale, index) => (
+                  <Card key={index}>
+                    <CardContent className="p-3">
+                      <div className="flex justify-between items-center">
+                        <div className="flex items-center gap-3">
+                          <Calendar className="h-4 w-4 text-muted-foreground" />
+                          <div>
+                            <div className="font-medium">{sale.customerName || 'Walk-in Customer'}</div>
+                            <div className="text-sm text-muted-foreground">{formatDate(sale.saleDate)}</div>
+                            <div className="flex gap-2 mt-1">
+                              <Badge variant="outline" className="text-xs">
+                                {sale.paymentMethod || 'cash'}
+                              </Badge>
+                              <Badge variant={sale.status === 'completed' ? 'default' : 'secondary'} className="text-xs">
+                                {sale.status || 'completed'}
+                              </Badge>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <div className="font-medium">{sale.quantity || 0} {product.unit || 'units'}</div>
+                          <div className="text-sm text-green-600">PKR {formatCurrency(sale.unitPrice)}/{product.unit || 'unit'}</div>
+                          <div className="text-sm font-medium">Total: PKR {formatCurrency(sale.totalPrice)}</div>
                         </div>
                       </div>
-                      <div className="text-right">
-                        <div className="font-medium">{sale.quantity || 0} {product.unit}</div>
-                        <div className="text-sm text-green-600">PKR {formatCurrency(sale.unitPrice)}/{product.unit}</div>
-                        <div className="text-sm font-medium">Total: PKR {formatCurrency(sale.totalPrice)}</div>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
             </div>
-          </div>
+          )}
 
           {loading && (
             <div className="text-center py-8">
