@@ -114,35 +114,13 @@ const Orders = () => {
     setIsOrderDetailsOpen(true);
   };
 
-  // IMPROVED: Handle individual order PDF download with better formatting and real QR code
+  // FIXED: Clean receipt generation
   const handleOrderPDF = async (order: Sale) => {
     try {
-      // Try backend PDF generation first
-      try {
-        const response = await salesApi.generatePDF(order.id);
-        const blob = new Blob([response], { type: 'application/pdf' });
-        const url = window.URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = `order_${order.orderNumber}_receipt.pdf`;
-        document.body.appendChild(link);
-        link.click();
-        window.URL.revokeObjectURL(url);
-        document.body.removeChild(link);
-        
-        toast({
-          title: "PDF Downloaded",
-          description: `Receipt for order ${order.orderNumber} downloaded successfully`,
-        });
-        return;
-      } catch (error) {
-        console.log('Backend PDF generation not available, using frontend generation');
-      }
-
-      // Generate QR code for the order
-      const qrData = `USMAN-HARDWARE-${order.orderNumber}-${order.total}`;
+      // Generate real QR code
+      const qrData = `USMAN-HARDWARE-ORDER-${order.orderNumber}-TOTAL-${order.total}`;
       const qrCodeDataURL = await QRCode.toDataURL(qrData, {
-        width: 100,
+        width: 80,
         margin: 1,
         color: {
           dark: '#000000',
@@ -150,130 +128,130 @@ const Orders = () => {
         }
       });
 
-      // Improved frontend PDF generation with better layout
+      // Create clean thermal receipt
       const pdf = new jsPDF({
         orientation: 'portrait',
         unit: 'mm',
-        format: [80, 200] // Thermal receipt size (80mm width)
+        format: [58, 150] // Smaller thermal receipt size
       });
 
-      const pageWidth = 80;
-      let yPos = 10;
+      const pageWidth = 58;
+      let yPos = 5;
 
       // Company Header
-      pdf.setFontSize(14);
+      pdf.setFontSize(10);
       pdf.setFont('helvetica', 'bold');
       pdf.text('USMAN HARDWARE', pageWidth / 2, yPos, { align: 'center' });
-      yPos += 6;
+      yPos += 4;
       
-      pdf.setFontSize(8);
+      pdf.setFontSize(7);
       pdf.setFont('helvetica', 'normal');
-      pdf.text('Furniture Hardware Specialist', pageWidth / 2, yPos, { align: 'center' });
-      yPos += 4;
-      pdf.text('Hafizabad, Punjab, Pakistan', pageWidth / 2, yPos, { align: 'center' });
-      yPos += 4;
-      pdf.text('Phone: +92-300-1234567', pageWidth / 2, yPos, { align: 'center' });
-      yPos += 8;
-
-      // Separator line
-      pdf.line(5, yPos, pageWidth - 5, yPos);
+      pdf.text('Hafizabad, Pakistan', pageWidth / 2, yPos, { align: 'center' });
+      yPos += 3;
+      pdf.text('Tel: +92-300-1234567', pageWidth / 2, yPos, { align: 'center' });
       yPos += 5;
 
+      // Separator
+      pdf.setDrawColor(0);
+      pdf.line(2, yPos, pageWidth - 2, yPos);
+      yPos += 3;
+
       // Receipt Title
-      pdf.setFontSize(12);
+      pdf.setFontSize(8);
       pdf.setFont('helvetica', 'bold');
       pdf.text('SALES RECEIPT', pageWidth / 2, yPos, { align: 'center' });
-      yPos += 8;
+      yPos += 5;
 
       // Order Information
-      pdf.setFontSize(8);
+      pdf.setFontSize(6);
       pdf.setFont('helvetica', 'normal');
-      pdf.text(`Receipt No: ${order.orderNumber}`, 5, yPos);
-      yPos += 4;
-      pdf.text(`Date: ${new Date(order.date).toLocaleDateString()}`, 5, yPos);
-      yPos += 4;
-      pdf.text(`Time: ${order.time}`, 5, yPos);
-      yPos += 4;
-      pdf.text(`Customer: ${order.customerName || 'Walk-in Customer'}`, 5, yPos);
-      yPos += 4;
-      pdf.text(`Cashier: ${order.createdBy}`, 5, yPos);
-      yPos += 4;
-      pdf.text(`Payment: ${order.paymentMethod.toUpperCase()}`, 5, yPos);
-      yPos += 6;
+      pdf.text(`No: ${order.orderNumber}`, 2, yPos);
+      yPos += 3;
+      pdf.text(`Date: ${new Date(order.date).toLocaleDateString()}`, 2, yPos);
+      yPos += 3;
+      pdf.text(`Time: ${order.time}`, 2, yPos);
+      yPos += 3;
+      pdf.text(`Customer: ${order.customerName || 'Walk-in'}`, 2, yPos);
+      yPos += 3;
+      pdf.text(`Cashier: ${order.createdBy}`, 2, yPos);
+      yPos += 5;
 
       // Items header
-      pdf.line(5, yPos, pageWidth - 5, yPos);
-      yPos += 3;
+      pdf.line(2, yPos, pageWidth - 2, yPos);
+      yPos += 2;
       
+      pdf.setFontSize(6);
       pdf.setFont('helvetica', 'bold');
-      pdf.text('Item', 5, yPos);
-      pdf.text('Qty', 45, yPos);
-      pdf.text('Rate', 55, yPos);
-      pdf.text('Amount', 65, yPos);
-      yPos += 3;
+      pdf.text('Item', 2, yPos);
+      pdf.text('Qty', 32, yPos);
+      pdf.text('Rate', 40, yPos);
+      pdf.text('Total', 48, yPos);
+      yPos += 2;
       
-      pdf.line(5, yPos, pageWidth - 5, yPos);
-      yPos += 4;
+      pdf.line(2, yPos, pageWidth - 2, yPos);
+      yPos += 3;
 
       // Items
       pdf.setFont('helvetica', 'normal');
       order.items.forEach((item: any) => {
         // Product name (truncate if too long)
-        const productName = item.productName.length > 20 
-          ? item.productName.substring(0, 20) + '...' 
+        const productName = item.productName.length > 18 
+          ? item.productName.substring(0, 18) + '...' 
           : item.productName;
         
-        pdf.text(productName, 5, yPos);
-        pdf.text(item.quantity.toString(), 45, yPos);
-        pdf.text(item.unitPrice.toFixed(0), 55, yPos);
-        pdf.text(item.total.toFixed(0), 65, yPos);
-        yPos += 4;
+        pdf.text(productName, 2, yPos);
+        pdf.text(item.quantity.toString(), 32, yPos);
+        pdf.text(item.unitPrice.toFixed(0), 40, yPos);
+        pdf.text(item.total.toFixed(0), 48, yPos);
+        yPos += 3;
       });
 
-      yPos += 2;
-      pdf.line(5, yPos, pageWidth - 5, yPos);
-      yPos += 4;
+      yPos += 1;
+      pdf.line(2, yPos, pageWidth - 2, yPos);
+      yPos += 3;
 
       // Totals
       pdf.setFont('helvetica', 'normal');
-      pdf.text(`Subtotal:`, 45, yPos);
-      pdf.text(`PKR ${order.subtotal.toFixed(0)}`, 60, yPos);
-      yPos += 4;
+      pdf.text('Subtotal:', 30, yPos);
+      pdf.text(`${order.subtotal.toFixed(0)}`, 48, yPos);
+      yPos += 3;
       
       if (order.discount > 0) {
-        pdf.text(`Discount:`, 45, yPos);
-        pdf.text(`PKR ${order.discount.toFixed(0)}`, 60, yPos);
-        yPos += 4;
+        pdf.text('Discount:', 30, yPos);
+        pdf.text(`-${order.discount.toFixed(0)}`, 48, yPos);
+        yPos += 3;
       }
       
       if (order.tax > 0) {
-        pdf.text(`Tax:`, 45, yPos);
-        pdf.text(`PKR ${order.tax.toFixed(0)}`, 60, yPos);
-        yPos += 4;
+        pdf.text('Tax:', 30, yPos);
+        pdf.text(`${order.tax.toFixed(0)}`, 48, yPos);
+        yPos += 3;
       }
       
       // Total
       pdf.setFont('helvetica', 'bold');
-      pdf.setFontSize(10);
-      pdf.text(`TOTAL:`, 45, yPos);
-      pdf.text(`PKR ${order.total.toFixed(0)}`, 60, yPos);
-      yPos += 8;
+      pdf.setFontSize(7);
+      pdf.text('TOTAL:', 30, yPos);
+      pdf.text(`PKR ${order.total.toFixed(0)}`, 45, yPos);
+      yPos += 5;
 
-      // QR Code
-      pdf.addImage(qrCodeDataURL, 'PNG', pageWidth / 2 - 15, yPos, 30, 30);
-      yPos += 35;
+      // Payment method
+      pdf.setFontSize(6);
+      pdf.setFont('helvetica', 'normal');
+      pdf.text(`Payment: ${order.paymentMethod.toUpperCase()}`, pageWidth / 2, yPos, { align: 'center' });
+      yPos += 5;
+
+      // QR Code - smaller and centered
+      pdf.addImage(qrCodeDataURL, 'PNG', pageWidth / 2 - 10, yPos, 20, 20);
+      yPos += 22;
 
       // Footer
-      pdf.setFontSize(7);
-      pdf.setFont('helvetica', 'normal');
+      pdf.setFontSize(5);
       pdf.text('Thank you for your business!', pageWidth / 2, yPos, { align: 'center' });
+      yPos += 2;
+      pdf.text('Visit: www.usmanhardware.com', pageWidth / 2, yPos, { align: 'center' });
       yPos += 3;
-      pdf.text('For queries: +92-300-1234567', pageWidth / 2, yPos, { align: 'center' });
-      yPos += 3;
-      pdf.text('www.usmanhardware.com', pageWidth / 2, yPos, { align: 'center' });
-      yPos += 5;
       
-      pdf.setFontSize(6);
       pdf.text(`Generated: ${new Date().toLocaleString()}`, pageWidth / 2, yPos, { align: 'center' });
 
       // Save PDF
@@ -281,7 +259,7 @@ const Orders = () => {
       
       toast({
         title: "Receipt Downloaded",
-        description: `Professional receipt for order ${order.orderNumber} downloaded successfully`,
+        description: `Clean receipt for order ${order.orderNumber} downloaded successfully`,
       });
     } catch (error) {
       console.error('Failed to generate PDF:', error);

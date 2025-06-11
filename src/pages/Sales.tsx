@@ -353,7 +353,7 @@ const Sales = () => {
   return (
     <div className="flex h-screen bg-gray-50 dark:bg-gray-900 overflow-hidden">
       {/* Main POS Area */}
-      <div className="flex-1 flex flex-col min-w-0 h-full">
+      <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
         {/* Header */}
         <div className="bg-background shadow-sm border-b px-3 md:px-4 py-3 flex-shrink-0">
           <div className="flex items-center justify-between">
@@ -403,9 +403,9 @@ const Sales = () => {
           </div>
         </div>
 
-        {/* Products Section - Fixed height with internal scrolling */}
-        <div className="flex-1 p-3 md:p-4 bg-background overflow-hidden flex flex-col">
-          <div className="mb-4 flex-shrink-0">
+        {/* Products Section - NO SCROLLBARS, FIXED HEIGHT */}
+        <div className="flex-1 overflow-hidden bg-background flex flex-col min-h-0">
+          <div className="p-3 md:p-4 flex-shrink-0">
             <div className="flex items-center justify-between mb-3">
               <h2 className="text-base md:text-lg font-semibold text-foreground flex items-center gap-2">
                 <Package className="h-4 w-4 text-blue-600" />
@@ -472,8 +472,8 @@ const Sales = () => {
             </div>
           </div>
 
-          {/* Responsive Products Grid - Scrollable */}
-          <div className="flex-1 overflow-y-auto">
+          {/* Responsive Products Grid - INTERNAL SCROLLING ONLY */}
+          <div className="flex-1 overflow-auto px-3 md:px-4 pb-4 min-h-0">
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7 gap-2">
               {sortedProducts.map((product) => (
                 <ProductCard
