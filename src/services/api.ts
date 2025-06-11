@@ -11,8 +11,10 @@ const instance = axios.create({
   },
 });
 
+// Remove the response interceptor that was stripping the response structure
 instance.interceptors.response.use(
   (response) => {
+    // Return the full response data structure that components expect
     return response.data;
   },
   (error) => {
@@ -341,6 +343,26 @@ export const notificationsApi = {
       throw error;
     }
   },
+
+  markAsRead: async (id: number) => {
+    try {
+      const response = await instance.put(`/notifications/${id}/mark-read`);
+      return response;
+    } catch (error) {
+      console.error(`Failed to mark notification ${id} as read:`, error);
+      throw error;
+    }
+  },
+
+  markAllAsRead: async () => {
+    try {
+      const response = await instance.put('/notifications/mark-all-read');
+      return response;
+    } catch (error) {
+      console.error("Failed to mark all notifications as read:", error);
+      throw error;
+    }
+  },
 };
 
 export const dashboardApi = {
@@ -350,6 +372,46 @@ export const dashboardApi = {
       return response;
     } catch (error) {
       console.error("Failed to fetch dashboard stats:", error);
+      throw error;
+    }
+  },
+
+  getEnhancedStats: async () => {
+    try {
+      const response = await instance.get('/dashboard/enhanced-stats');
+      return response;
+    } catch (error) {
+      console.error("Failed to fetch enhanced stats:", error);
+      throw error;
+    }
+  },
+
+  getCategoryPerformance: async () => {
+    try {
+      const response = await instance.get('/dashboard/category-performance');
+      return response;
+    } catch (error) {
+      console.error("Failed to fetch category performance:", error);
+      throw error;
+    }
+  },
+
+  getDailySales: async () => {
+    try {
+      const response = await instance.get('/dashboard/daily-sales');
+      return response;
+    } catch (error) {
+      console.error("Failed to fetch daily sales:", error);
+      throw error;
+    }
+  },
+
+  getInventoryStatus: async () => {
+    try {
+      const response = await instance.get('/dashboard/inventory-status');
+      return response;
+    } catch (error) {
+      console.error("Failed to fetch inventory status:", error);
       throw error;
     }
   },
@@ -365,6 +427,16 @@ export const inventoryApi = {
       throw error;
     }
   },
+
+  getMovements: async (params = {}) => {
+    try {
+      const response = await instance.get('/inventory/movements', { params });
+      return response;
+    } catch (error) {
+      console.error("Failed to fetch inventory movements:", error);
+      throw error;
+    }
+  },
 };
 
 export const categoriesApi = {
@@ -374,6 +446,16 @@ export const categoriesApi = {
       return response;
     } catch (error) {
       console.error("Failed to fetch categories:", error);
+      throw error;
+    }
+  },
+
+  create: async (categoryData: any) => {
+    try {
+      const response = await instance.post('/categories', categoryData);
+      return response;
+    } catch (error) {
+      console.error("Failed to create category:", error);
       throw error;
     }
   },
@@ -438,6 +520,16 @@ export const quotationsApi = {
       return response;
     } catch (error) {
       console.error(`Failed to delete quotation with ID ${id}:`, error);
+      throw error;
+    }
+  },
+
+  convertToSale: async (id: number) => {
+    try {
+      const response = await instance.post(`/quotations/${id}/convert-to-sale`);
+      return response;
+    } catch (error) {
+      console.error(`Failed to convert quotation ${id} to sale:`, error);
       throw error;
     }
   },
