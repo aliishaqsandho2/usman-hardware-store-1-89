@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { User, Package, Calendar, DollarSign, FileText, Edit2, RotateCcw, AlertTriangle } from "lucide-react";
+import { User, Package, Calendar, DollarSign, FileText, RotateCcw, AlertTriangle, Minus, Plus, ArrowLeft } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { salesApi } from "@/services/api";
 import jsPDF from 'jspdf';
@@ -83,15 +83,16 @@ export const OrderDetailsModal = ({ open, onOpenChange, order, onOrderUpdated }:
         return;
       }
 
+      // Updated API call structure based on the suggested endpoint
       const adjustmentData = {
+        type: "return",
         items: itemsToReturn.map(item => ({
           productId: item.productId,
-          quantity: -item.returnQuantity, // Negative for returns
-          reason: item.reason || "Return after completion",
-          unitPrice: item.unitPrice
+          quantity: item.returnQuantity,
+          reason: item.reason || "Return after completion"
         })),
-        adjustmentType: "return",
-        notes: adjustmentNotes || "Order adjustment - items returned after completion"
+        adjustmentReason: adjustmentNotes || "Order adjustment - items returned after completion",
+        restockItems: true
       };
 
       console.log('Sending adjustment data:', adjustmentData);
@@ -257,7 +258,7 @@ export const OrderDetailsModal = ({ open, onOpenChange, order, onOrderUpdated }:
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-auto">
+      <DialogContent className="max-w-5xl max-h-[95vh] overflow-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Package className="h-5 w-5 text-blue-600" />
@@ -381,88 +382,180 @@ export const OrderDetailsModal = ({ open, onOpenChange, order, onOrderUpdated }:
                   className="border-orange-300 text-orange-700 hover:bg-orange-50"
                 >
                   <RotateCcw className="h-4 w-4 mr-2" />
-                  Adjust Order
+                  Return Items
                 </Button>
               )}
             </div>
           </div>
         ) : (
           <div className="space-y-6">
-            {/* Adjustment Form */}
-            <Card className="border-orange-200">
-              <CardHeader>
-                <CardTitle className="text-sm flex items-center gap-2 text-orange-700">
-                  <AlertTriangle className="h-4 w-4" />
-                  Order Adjustment - Return Items
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-3">
-                  {adjustmentItems.map((item, index) => (
-                    <div key={index} className="border rounded-lg p-4 space-y-3">
-                      <div className="flex justify-between items-center">
-                        <h4 className="font-medium">{item.productName}</h4>
-                        <span className="text-sm text-muted-foreground">
-                          Original: {item.originalQuantity}
-                        </span>
+            {/* Header with Back Button */}
+            <div className="flex items-center gap-3 pb-4 border-b">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowAdjustmentForm(false)}
+                className="flex items-center gap-2 text-gray-600 hover:text-gray-800"
+              >
+                <ArrowLeft className="h-4 w-4" />
+                Back to Order Details
+              </Button>
+              <div className="flex items-center gap-2">
+                <AlertTriangle className="h-5 w-5 text-orange-600" />
+                <h3 className="text-lg font-semibold text-orange-700">Return Items from Order</h3>
+              </div>
+            </div>
+
+            {/* Return Items Form */}
+            <div className="space-y-4">
+              <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
+                <h4 className="font-medium text-orange-800 mb-2">Order: {order.orderNumber}</h4>
+                <p className="text-sm text-orange-700">
+                  Select the items and quantities you want to return. These items will be added back to inventory.
+                </p>
+              </div>
+
+              <div className="grid gap-4">
+                {adjustmentItems.map((item, index) => (
+                  <Card key={index} className="border-2 border-gray-200 hover:border-orange-300 transition-colors">
+                    <CardContent className="p-4">
+                      <div className="flex items-center justify-between mb-3">
+                        <div>
+                          <h4 className="font-semibold text-gray-800">{item.productName}</h4>
+                          <p className="text-sm text-gray-600">
+                            Original Quantity: <span className="font-medium">{item.originalQuantity}</span>
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-sm text-gray-600">Unit Price</p>
+                          <p className="font-medium">PKR {item.unitPrice.toFixed(2)}</p>
+                        </div>
                       </div>
                       
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
-                          <Label htmlFor={`return-qty-${index}`}>Return Quantity</Label>
-                          <Input
-                            id={`return-qty-${index}`}
-                            type="number"
-                            min="0"
-                            max={item.originalQuantity}
-                            value={item.returnQuantity}
-                            onChange={(e) => updateReturnQuantity(index, parseInt(e.target.value) || 0)}
-                            placeholder="Enter quantity to return"
-                          />
+                          <Label htmlFor={`return-qty-${index}`} className="text-sm font-medium text-gray-700">
+                            Return Quantity
+                          </Label>
+                          <div className="flex items-center gap-2 mt-1">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              className="h-8 w-8 p-0"
+                              onClick={() => updateReturnQuantity(index, item.returnQuantity - 1)}
+                              disabled={item.returnQuantity <= 0}
+                            >
+                              <Minus className="h-3 w-3" />
+                            </Button>
+                            <Input
+                              id={`return-qty-${index}`}
+                              type="number"
+                              min="0"
+                              max={item.originalQuantity}
+                              value={item.returnQuantity}
+                              onChange={(e) => updateReturnQuantity(index, parseInt(e.target.value) || 0)}
+                              className="w-20 text-center"
+                            />
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              className="h-8 w-8 p-0"
+                              onClick={() => updateReturnQuantity(index, item.returnQuantity + 1)}
+                              disabled={item.returnQuantity >= item.originalQuantity}
+                            >
+                              <Plus className="h-3 w-3" />
+                            </Button>
+                          </div>
                         </div>
                         
                         <div>
-                          <Label htmlFor={`reason-${index}`}>Return Reason</Label>
+                          <Label htmlFor={`reason-${index}`} className="text-sm font-medium text-gray-700">
+                            Return Reason
+                          </Label>
                           <Input
                             id={`reason-${index}`}
                             value={item.reason}
                             onChange={(e) => updateReturnReason(index, e.target.value)}
-                            placeholder="Reason for return"
+                            placeholder="e.g., Damaged, Wrong item"
+                            className="mt-1"
                           />
                         </div>
                       </div>
+                      
+                      {item.returnQuantity > 0 && (
+                        <div className="mt-3 p-2 bg-green-50 border border-green-200 rounded">
+                          <p className="text-sm text-green-700">
+                            <strong>Refund Amount:</strong> PKR {(item.returnQuantity * item.unitPrice).toFixed(2)}
+                          </p>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+
+              <div>
+                <Label htmlFor="adjustment-notes" className="text-sm font-medium text-gray-700">
+                  Additional Notes
+                </Label>
+                <Textarea
+                  id="adjustment-notes"
+                  value={adjustmentNotes}
+                  onChange={(e) => setAdjustmentNotes(e.target.value)}
+                  placeholder="Any additional notes about this return..."
+                  rows={3}
+                  className="mt-1"
+                />
+              </div>
+
+              {/* Summary */}
+              {adjustmentItems.some(item => item.returnQuantity > 0) && (
+                <Card className="bg-blue-50 border-blue-200">
+                  <CardContent className="p-4">
+                    <h4 className="font-medium text-blue-800 mb-2">Return Summary</h4>
+                    <div className="space-y-1 text-sm">
+                      {adjustmentItems
+                        .filter(item => item.returnQuantity > 0)
+                        .map((item, index) => (
+                          <div key={index} className="flex justify-between text-blue-700">
+                            <span>{item.productName} x {item.returnQuantity}</span>
+                            <span>PKR {(item.returnQuantity * item.unitPrice).toFixed(2)}</span>
+                          </div>
+                        ))}
+                      <Separator className="my-2" />
+                      <div className="flex justify-between font-medium text-blue-800">
+                        <span>Total Refund:</span>
+                        <span>
+                          PKR {adjustmentItems
+                            .reduce((sum, item) => sum + (item.returnQuantity * item.unitPrice), 0)
+                            .toFixed(2)}
+                        </span>
+                      </div>
                     </div>
-                  ))}
-                </div>
+                  </CardContent>
+                </Card>
+              )}
 
-                <div>
-                  <Label htmlFor="adjustment-notes">Additional Notes</Label>
-                  <Textarea
-                    id="adjustment-notes"
-                    value={adjustmentNotes}
-                    onChange={(e) => setAdjustmentNotes(e.target.value)}
-                    placeholder="Additional notes for this adjustment..."
-                    rows={3}
-                  />
-                </div>
-
-                <div className="flex gap-2 justify-end">
-                  <Button
-                    variant="outline"
-                    onClick={() => setShowAdjustmentForm(false)}
-                  >
-                    Cancel
-                  </Button>
-                  <Button
-                    onClick={handleOrderAdjustment}
-                    disabled={adjustmentLoading}
-                    className="bg-orange-600 hover:bg-orange-700 text-white"
-                  >
-                    {adjustmentLoading ? 'Processing...' : 'Process Adjustment'}
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
+              <div className="flex gap-3 justify-end pt-4 border-t">
+                <Button
+                  variant="outline"
+                  onClick={() => setShowAdjustmentForm(false)}
+                  disabled={adjustmentLoading}
+                  className="min-w-24"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleOrderAdjustment}
+                  disabled={adjustmentLoading || !adjustmentItems.some(item => item.returnQuantity > 0)}
+                  className="bg-orange-600 hover:bg-orange-700 text-white min-w-32"
+                >
+                  {adjustmentLoading ? 'Processing...' : 'Process Return'}
+                </Button>
+              </div>
+            </div>
           </div>
         )}
       </DialogContent>
