@@ -1,4 +1,4 @@
-import { useToast } from "@/hooks/use-toast";
+
 import axios from "axios";
 
 // WordPress REST API Base URL
@@ -68,6 +68,16 @@ export const productsApi = {
       return response;
     } catch (error) {
       console.error(`Failed to delete product with ID ${id}:`, error);
+      throw error;
+    }
+  },
+
+  adjustStock: async (id: number, adjustment: any) => {
+    try {
+      const response = await instance.post(`/products/${id}/adjust-stock`, adjustment);
+      return response;
+    } catch (error) {
+      console.error(`Failed to adjust stock for product with ID ${id}:`, error);
       throw error;
     }
   },
@@ -146,7 +156,7 @@ export const salesApi = {
     }
   },
 
-  create: async (saleData) => {
+  create: async (saleData: any) => {
     try {
       const response = await instance.post('/sales', saleData);
       return response;
@@ -156,7 +166,7 @@ export const salesApi = {
     }
   },
 
-  update: async (id, updateData) => {
+  update: async (id: any, updateData: any) => {
     try {
       console.log('Updating sale with ID:', id, 'Data:', updateData);
       
@@ -181,6 +191,26 @@ export const salesApi = {
       return result;
     } catch (error) {
       console.error('Sales update error:', error);
+      throw error;
+    }
+  },
+
+  updateStatus: async (id: number, status: string) => {
+    try {
+      const response = await instance.put(`/sales/${id}`, { status });
+      return response;
+    } catch (error) {
+      console.error(`Failed to update sale status with ID ${id}:`, error);
+      throw error;
+    }
+  },
+
+  adjustOrder: async (id: number, adjustmentData: any) => {
+    try {
+      const response = await instance.post(`/sales/${id}/adjust`, adjustmentData);
+      return response;
+    } catch (error) {
+      console.error(`Failed to adjust order with ID ${id}:`, error);
       throw error;
     }
   },
@@ -295,6 +325,119 @@ export const purchaseOrdersApi = {
       return response;
     } catch (error) {
       console.error(`Failed to delete purchase order with ID ${id}:`, error);
+      throw error;
+    }
+  },
+};
+
+// Missing APIs that other components expect
+export const notificationsApi = {
+  getAll: async (params = {}) => {
+    try {
+      const response = await instance.get('/notifications', { params });
+      return response;
+    } catch (error) {
+      console.error("Failed to fetch notifications:", error);
+      throw error;
+    }
+  },
+};
+
+export const dashboardApi = {
+  getStats: async () => {
+    try {
+      const response = await instance.get('/dashboard/stats');
+      return response;
+    } catch (error) {
+      console.error("Failed to fetch dashboard stats:", error);
+      throw error;
+    }
+  },
+};
+
+export const inventoryApi = {
+  getAll: async (params = {}) => {
+    try {
+      const response = await instance.get('/inventory', { params });
+      return response;
+    } catch (error) {
+      console.error("Failed to fetch inventory:", error);
+      throw error;
+    }
+  },
+};
+
+export const categoriesApi = {
+  getAll: async (params = {}) => {
+    try {
+      const response = await instance.get('/categories', { params });
+      return response;
+    } catch (error) {
+      console.error("Failed to fetch categories:", error);
+      throw error;
+    }
+  },
+};
+
+export const unitsApi = {
+  getAll: async (params = {}) => {
+    try {
+      const response = await instance.get('/units', { params });
+      return response;
+    } catch (error) {
+      console.error("Failed to fetch units:", error);
+      throw error;
+    }
+  },
+};
+
+export const quotationsApi = {
+  getAll: async (params = {}) => {
+    try {
+      const response = await instance.get('/quotations', { params });
+      return response;
+    } catch (error) {
+      console.error("Failed to fetch quotations:", error);
+      throw error;
+    }
+  },
+
+  getById: async (id: number) => {
+    try {
+      const response = await instance.get(`/quotations/${id}`);
+      return response;
+    } catch (error) {
+      console.error(`Failed to fetch quotation with ID ${id}:`, error);
+      throw error;
+    }
+  },
+
+  create: async (quotationData: any) => {
+    try {
+      const response = await instance.post('/quotations', quotationData);
+      return response;
+    } catch (error) {
+      console.error("Failed to create quotation:", error);
+      throw error;
+    }
+  },
+
+  update: async (id: number, quotationData: any) => {
+    try {
+      const response = await instance.put(`/quotations/${id}`, quotationData);
+      return response;
+    } catch (error) {
+      console.error(`Failed to update quotation with ID ${id}:`, error);
+      throw error;
+    }
+  },
+
+  delete: async (id: number) => {
+    try {
+      const response = await instance.delete(`/quotations/${id}`);
+      return response;
+    } catch (error) {
+      console.error(`Failed to delete quotation with ID ${id}:`, error);
       throw error;
     }
   },
