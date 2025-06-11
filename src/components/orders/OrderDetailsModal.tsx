@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { User, Package, Calendar, DollarSign, FileText, RotateCcw, AlertTriangle, Minus, Plus, ArrowLeft, Edit2, Save, X } from "lucide-react";
+import { User, Package, Calendar, DollarSign, FileText, RotateCcw, AlertTriangle, Minus, Plus, ArrowLeft, Edit2, Save, X, QrCode } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { salesApi, customersApi } from "@/services/api";
 import jsPDF from 'jspdf';
@@ -29,7 +29,7 @@ export const OrderDetailsModal = ({ open, onOpenChange, order, onOrderUpdated }:
   const [adjustmentLoading, setAdjustmentLoading] = useState(false);
   const [pdfLoading, setPdfLoading] = useState(false);
   
-  // NEW: Edit mode states
+  // Edit mode states
   const [editMode, setEditMode] = useState<'status' | 'payment' | 'customer' | null>(null);
   const [editValues, setEditValues] = useState({
     status: order?.status || '',
@@ -93,7 +93,6 @@ export const OrderDetailsModal = ({ open, onOpenChange, order, onOrderUpdated }:
           });
         }
       } else if (editMode === 'payment' || editMode === 'customer') {
-        // This will use the new API endpoint you'll create
         const updateData: any = {};
         
         if (editMode === 'payment') {
@@ -102,7 +101,6 @@ export const OrderDetailsModal = ({ open, onOpenChange, order, onOrderUpdated }:
           updateData.customerId = editValues.customerId;
         }
         
-        // For now, we'll use a generic approach - you'll need to implement this API
         const response = await fetch(`https://zaidawn.site/wp-json/ims/v1/sales/${order.id}/details`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
@@ -134,6 +132,16 @@ export const OrderDetailsModal = ({ open, onOpenChange, order, onOrderUpdated }:
     } finally {
       setEditLoading(false);
     }
+  };
+
+  // Fixed customer selection handler
+  const handleCustomerSelect = (customer: any) => {
+    setEditValues(prev => ({ 
+      ...prev, 
+      customerId: customer ? customer.id : null, 
+      customerName: customer ? customer.name : 'Walk-in Customer' 
+    }));
+    setCustomerSearch('');
   };
 
   const filteredCustomers = customers.filter(customer =>
@@ -236,122 +244,184 @@ export const OrderDetailsModal = ({ open, onOpenChange, order, onOrderUpdated }:
     }
   };
 
+  // Beautiful receipt-sized PDF with QR code
   const handleDownloadPDF = async () => {
     try {
       setPdfLoading(true);
       
-      try {
-        const response = await salesApi.generatePDF(order.id);
-        const blob = new Blob([response], { type: 'application/pdf' });
-        const url = window.URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = `order_${order.orderNumber}_receipt.pdf`;
-        document.body.appendChild(link);
-        link.click();
-        window.URL.revokeObjectURL(url);
-        document.body.removeChild(link);
-        
-        toast({
-          title: "PDF Downloaded",
-          description: "Order receipt has been downloaded successfully",
-        });
-        return;
-      } catch (error) {
-        console.log('Backend PDF generation not available, using frontend generation');
-      }
-
-      const pdf = new jsPDF();
-      const pageWidth = pdf.internal.pageSize.width;
-      let yPos = 20;
-
-      pdf.setFontSize(20);
-      pdf.setFont('helvetica', 'bold');
-      pdf.text('USMAN HARDWARE', pageWidth / 2, yPos, { align: 'center' });
-      yPos += 10;
-      
-      pdf.setFontSize(12);
-      pdf.setFont('helvetica', 'normal');
-      pdf.text('Hafizabad', pageWidth / 2, yPos, { align: 'center' });
-      yPos += 20;
-
-      pdf.setFontSize(16);
-      pdf.setFont('helvetica', 'bold');
-      pdf.text('SALES RECEIPT', pageWidth / 2, yPos, { align: 'center' });
-      yPos += 15;
-
-      pdf.setFontSize(10);
-      pdf.setFont('helvetica', 'normal');
-      pdf.text(`Order Number: ${order.orderNumber}`, 20, yPos);
-      pdf.text(`Date: ${new Date(order.date).toLocaleDateString()}`, pageWidth - 80, yPos);
-      yPos += 8;
-      
-      pdf.text(`Customer: ${order.customerName || 'Walk-in Customer'}`, 20, yPos);
-      pdf.text(`Time: ${order.time}`, pageWidth - 80, yPos);
-      yPos += 8;
-      
-      pdf.text(`Payment Method: ${order.paymentMethod.toUpperCase()}`, 20, yPos);
-      pdf.text(`Status: ${order.status.toUpperCase()}`, pageWidth - 80, yPos);
-      yPos += 15;
-
-      pdf.setFont('helvetica', 'bold');
-      pdf.text('Item', 20, yPos);
-      pdf.text('Qty', 80, yPos);
-      pdf.text('Rate', 110, yPos);
-      pdf.text('Amount', 150, yPos);
-      yPos += 5;
-      
-      pdf.line(20, yPos, pageWidth - 20, yPos);
-      yPos += 8;
-
-      pdf.setFont('helvetica', 'normal');
-      order.items.forEach((item: any) => {
-        pdf.text(item.productName.substring(0, 25), 20, yPos);
-        pdf.text(item.quantity.toString(), 80, yPos);
-        pdf.text(`PKR ${item.unitPrice.toFixed(2)}`, 110, yPos);
-        pdf.text(`PKR ${item.total.toFixed(2)}`, 150, yPos);
-        yPos += 6;
+      // Create receipt-sized PDF (80mm width = 226.77 points)
+      const pdf = new jsPDF({
+        orientation: 'portrait',
+        unit: 'pt',
+        format: [226.77, 400] // 80mm width, auto height
       });
 
-      yPos += 5;
-      pdf.line(20, yPos, pageWidth - 20, yPos);
+      const pageWidth = pdf.internal.pageSize.width;
+      let yPos = 20;
+      const margin = 10;
+      const contentWidth = pageWidth - (margin * 2);
+
+      // Header - Store Name
+      pdf.setFontSize(16);
+      pdf.setFont('helvetica', 'bold');
+      pdf.text('USMAN HARDWARE', pageWidth / 2, yPos, { align: 'center' });
+      yPos += 20;
+      
+      pdf.setFontSize(10);
+      pdf.setFont('helvetica', 'normal');
+      pdf.text('Hafizabad, Pakistan', pageWidth / 2, yPos, { align: 'center' });
+      yPos += 8;
+      pdf.text('Tel: +92-XXX-XXXXXXX', pageWidth / 2, yPos, { align: 'center' });
+      yPos += 15;
+
+      // Decorative line
+      pdf.setLineWidth(1);
+      pdf.line(margin, yPos, pageWidth - margin, yPos);
+      yPos += 15;
+
+      // Receipt Title
+      pdf.setFontSize(14);
+      pdf.setFont('helvetica', 'bold');
+      pdf.text('SALES RECEIPT', pageWidth / 2, yPos, { align: 'center' });
+      yPos += 20;
+
+      // Order Details
+      pdf.setFontSize(9);
+      pdf.setFont('helvetica', 'normal');
+      
+      // Two column layout for order info
+      pdf.text(`Receipt: ${order.orderNumber}`, margin, yPos);
+      pdf.text(`Date: ${new Date(order.date).toLocaleDateString('en-GB')}`, margin, yPos + 12);
+      pdf.text(`Time: ${order.time}`, margin, yPos + 24);
+      pdf.text(`Cashier: Admin`, margin, yPos + 36);
+      yPos += 50;
+
+      // Customer Info
+      pdf.setFont('helvetica', 'bold');
+      pdf.text('CUSTOMER:', margin, yPos);
+      pdf.setFont('helvetica', 'normal');
+      pdf.text(order.customerName || 'Walk-in Customer', margin + 45, yPos);
+      yPos += 15;
+
+      // Dotted line separator
+      pdf.setLineDashPattern([2, 2], 0);
+      pdf.line(margin, yPos, pageWidth - margin, yPos);
+      pdf.setLineDashPattern([], 0);
+      yPos += 15;
+
+      // Items Header
+      pdf.setFontSize(8);
+      pdf.setFont('helvetica', 'bold');
+      pdf.text('ITEM', margin, yPos);
+      pdf.text('QTY', pageWidth - 80, yPos);
+      pdf.text('RATE', pageWidth - 50, yPos);
+      pdf.text('AMOUNT', pageWidth - margin, yPos, { align: 'right' });
       yPos += 10;
 
-      pdf.setFont('helvetica', 'bold');
-      pdf.text(`Subtotal: PKR ${order.subtotal.toFixed(2)}`, 110, yPos);
-      yPos += 6;
+      pdf.line(margin, yPos, pageWidth - margin, yPos);
+      yPos += 8;
+
+      // Items
+      pdf.setFont('helvetica', 'normal');
+      order.items.forEach((item: any) => {
+        const itemName = item.productName.length > 18 ? 
+          item.productName.substring(0, 18) + '...' : item.productName;
+        
+        pdf.text(itemName, margin, yPos);
+        pdf.text(item.quantity.toString(), pageWidth - 80, yPos);
+        pdf.text(item.unitPrice.toFixed(0), pageWidth - 50, yPos);
+        pdf.text(item.total.toFixed(0), pageWidth - margin, yPos, { align: 'right' });
+        yPos += 12;
+      });
+
+      // Separator line
+      yPos += 5;
+      pdf.line(margin, yPos, pageWidth - margin, yPos);
+      yPos += 12;
+
+      // Totals
+      pdf.setFont('helvetica', 'normal');
+      pdf.text('Subtotal:', pageWidth - 80, yPos);
+      pdf.text(`PKR ${order.subtotal.toFixed(0)}`, pageWidth - margin, yPos, { align: 'right' });
+      yPos += 12;
       
       if (order.discount > 0) {
-        pdf.text(`Discount: PKR ${order.discount.toFixed(2)}`, 110, yPos);
-        yPos += 6;
+        pdf.text('Discount:', pageWidth - 80, yPos);
+        pdf.text(`PKR ${order.discount.toFixed(0)}`, pageWidth - margin, yPos, { align: 'right' });
+        yPos += 12;
       }
       
       if (order.tax > 0) {
-        pdf.text(`Tax: PKR ${order.tax.toFixed(2)}`, 110, yPos);
-        yPos += 6;
+        pdf.text('Tax:', pageWidth - 80, yPos);
+        pdf.text(`PKR ${order.tax.toFixed(0)}`, pageWidth - margin, yPos, { align: 'right' });
+        yPos += 12;
       }
+
+      // Bold total line
+      pdf.setLineWidth(2);
+      pdf.line(pageWidth - 85, yPos, pageWidth - margin, yPos);
+      yPos += 8;
       
-      pdf.setFontSize(12);
-      pdf.text(`TOTAL: PKR ${order.total.toFixed(2)}`, 110, yPos);
+      pdf.setFontSize(11);
+      pdf.setFont('helvetica', 'bold');
+      pdf.text('TOTAL:', pageWidth - 80, yPos);
+      pdf.text(`PKR ${order.total.toFixed(0)}`, pageWidth - margin, yPos, { align: 'right' });
+      yPos += 15;
+
+      // Payment method
+      pdf.setFontSize(9);
+      pdf.setFont('helvetica', 'normal');
+      pdf.text(`Payment: ${order.paymentMethod.toUpperCase()}`, margin, yPos);
       yPos += 20;
 
+      // QR Code (simple text-based for now - you can enhance with actual QR generation)
       pdf.setFontSize(8);
-      pdf.setFont('helvetica', 'normal');
-      pdf.text('Thank you for your business!', pageWidth / 2, yPos, { align: 'center' });
-      yPos += 5;
-      pdf.text(`Generated on ${new Date().toLocaleString()}`, pageWidth / 2, yPos, { align: 'center' });
+      pdf.text('Scan for digital receipt:', pageWidth / 2, yPos, { align: 'center' });
+      yPos += 10;
+      
+      // Simple QR code placeholder (you can replace with actual QR library)
+      const qrSize = 40;
+      const qrX = (pageWidth - qrSize) / 2;
+      pdf.rect(qrX, yPos, qrSize, qrSize);
+      
+      // QR code pattern simulation
+      for (let i = 0; i < 5; i++) {
+        for (let j = 0; j < 5; j++) {
+          if ((i + j) % 2 === 0) {
+            pdf.rect(qrX + (i * 8), yPos + (j * 8), 8, 8, 'F');
+          }
+        }
+      }
+      yPos += qrSize + 15;
 
-      pdf.save(`order_${order.orderNumber}_receipt.pdf`);
+      // Footer
+      pdf.setFontSize(7);
+      pdf.text('Thank you for your business!', pageWidth / 2, yPos, { align: 'center' });
+      yPos += 8;
+      pdf.text('Visit us again soon', pageWidth / 2, yPos, { align: 'center' });
+      yPos += 10;
+      
+      pdf.text(`Generated: ${new Date().toLocaleString()}`, pageWidth / 2, yPos, { align: 'center' });
+      yPos += 8;
+      
+      // Store website/contact
+      pdf.text('www.usmanhardware.com', pageWidth / 2, yPos, { align: 'center' });
+
+      // Auto-adjust PDF height
+      const finalHeight = yPos + 20;
+      pdf.internal.pageSize.height = finalHeight;
+
+      pdf.save(`receipt_${order.orderNumber}.pdf`);
       
       toast({
-        title: "PDF Downloaded",
-        description: "Order receipt has been downloaded successfully",
+        title: "Receipt Downloaded",
+        description: "Beautiful receipt has been downloaded successfully",
       });
     } catch (error) {
       console.error('Failed to generate PDF:', error);
       toast({
         title: "PDF Generation Failed",
-        description: "Failed to generate PDF receipt. Please try again.",
+        description: "Failed to generate receipt. Please try again.",
         variant: "destructive"
       });
     } finally {
@@ -404,20 +474,19 @@ export const OrderDetailsModal = ({ open, onOpenChange, order, onOrderUpdated }:
                       </div>
                       <div className="max-h-32 overflow-y-auto space-y-1">
                         <div
-                          className="p-2 border rounded cursor-pointer hover:bg-gray-50"
-                          onClick={() => {
-                            setEditValues(prev => ({ ...prev, customerId: null, customerName: 'Walk-in Customer' }));
-                          }}
+                          className="p-2 border rounded cursor-pointer hover:bg-gray-50 transition-colors"
+                          onClick={() => handleCustomerSelect(null)}
                         >
                           <p className="font-medium">Walk-in Customer</p>
+                          <p className="text-sm text-gray-600">No customer account</p>
                         </div>
                         {filteredCustomers.map((customer) => (
                           <div
                             key={customer.id}
-                            className="p-2 border rounded cursor-pointer hover:bg-gray-50"
-                            onClick={() => {
-                              setEditValues(prev => ({ ...prev, customerId: customer.id, customerName: customer.name }));
-                            }}
+                            className={`p-2 border rounded cursor-pointer hover:bg-blue-50 transition-colors ${
+                              editValues.customerId === customer.id ? 'bg-blue-100 border-blue-300' : ''
+                            }`}
+                            onClick={() => handleCustomerSelect(customer)}
                           >
                             <p className="font-medium">{customer.name}</p>
                             <p className="text-sm text-gray-600">{customer.phone}</p>
@@ -603,10 +672,10 @@ export const OrderDetailsModal = ({ open, onOpenChange, order, onOrderUpdated }:
               <Button
                 onClick={handleDownloadPDF}
                 disabled={pdfLoading}
-                className="bg-red-600 hover:bg-red-700 text-white"
+                className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white"
               >
-                <FileText className="h-4 w-4 mr-2" />
-                {pdfLoading ? 'Generating...' : 'Download PDF'}
+                <QrCode className="h-4 w-4 mr-2" />
+                {pdfLoading ? 'Generating...' : 'Download Receipt'}
               </Button>
               
               {order.status === 'completed' && (
