@@ -114,13 +114,13 @@ const Orders = () => {
     setIsOrderDetailsOpen(true);
   };
 
-  // BEAUTIFUL 80MM THERMAL RECEIPT with Enhanced Design & Watermark
+  // ENHANCED 80MM THERMAL RECEIPT - Fixed Character Issues & Perfect Alignment
   const handleOrderPDF = async (order: Sale) => {
     try {
-      // Generate beautiful QR code with enhanced styling
+      // Generate QR code with proper encoding
       const qrData = `USMAN-HARDWARE-${order.orderNumber}-${order.total}-VERIFIED`;
       const qrCodeDataURL = await QRCode.toDataURL(qrData, {
-        width: 80,
+        width: 60,
         margin: 1,
         color: {
           dark: '#1a365d',
@@ -129,30 +129,32 @@ const Orders = () => {
         errorCorrectionLevel: 'H'
       });
 
-      // Create beautiful 80mm thermal receipt
+      // Create 80mm thermal receipt
       const pdf = new jsPDF({
         orientation: 'portrait',
         unit: 'mm',
-        format: [80, 250] // 80mm width, variable height
+        format: [80, 300] // 80mm width, sufficient height
       });
 
       const pageWidth = 80;
       let yPos = 8;
 
-      // WATERMARK - Elegant diagonal background
-      pdf.setTextColor(245, 245, 245);
-      pdf.setFontSize(24);
+      // Set default font to avoid character encoding issues
+      pdf.setFont('helvetica', 'normal');
+
+      // SUBTLE WATERMARK - Light diagonal background
+      pdf.setTextColor(250, 250, 250);
+      pdf.setFontSize(20);
       pdf.setFont('helvetica', 'bold');
       
-      // Create beautiful diagonal watermark
       pdf.saveGraphicsState();
-      pdf.setGState(pdf.GState({ opacity: 0.08 }));
+      pdf.setGState(pdf.GState({ opacity: 0.05 }));
       
-      // Multiple watermark lines for better coverage
-      for (let i = 0; i < 8; i++) {
-        const yWatermark = 30 + (i * 25);
+      // Create subtle watermark pattern
+      for (let i = 0; i < 6; i++) {
+        const yWatermark = 40 + (i * 30);
         pdf.text('USMAN HARDWARE', pageWidth / 2, yWatermark, {
-          angle: -25,
+          angle: -20,
           align: 'center'
         });
       }
@@ -160,238 +162,250 @@ const Orders = () => {
       pdf.restoreGraphicsState();
       pdf.setTextColor(0, 0, 0); // Reset to black
 
-      // ELEGANT HEADER with gradient effect simulation
-      pdf.setFillColor(26, 54, 93); // Dark blue
-      pdf.roundedRect(2, yPos, pageWidth - 4, 35, 2, 2, 'F');
+      // HEADER SECTION with clean design
+      pdf.setFillColor(26, 54, 93);
+      pdf.roundedRect(4, yPos, pageWidth - 8, 32, 2, 2, 'F');
       
       pdf.setTextColor(255, 255, 255);
-      pdf.setFontSize(16);
+      pdf.setFontSize(14);
       pdf.setFont('helvetica', 'bold');
-      pdf.text('USMAN HARDWARE', pageWidth / 2, yPos + 8, { align: 'center' });
+      pdf.text('USMAN HARDWARE', pageWidth / 2, yPos + 7, { align: 'center' });
       
-      pdf.setFontSize(8);
+      pdf.setFontSize(7);
       pdf.setFont('helvetica', 'normal');
-      pdf.text('Premium Furniture Hardware', pageWidth / 2, yPos + 15, { align: 'center' });
-      pdf.text('📍 Hafizabad, Punjab', pageWidth / 2, yPos + 21, { align: 'center' });
-      pdf.text('📞 +92-300-1234567', pageWidth / 2, yPos + 27, { align: 'center' });
-      pdf.text('🌐 www.usmanhardware.com', pageWidth / 2, yPos + 33, { align: 'center' });
+      pdf.text('Premium Furniture Hardware', pageWidth / 2, yPos + 13, { align: 'center' });
+      pdf.text('Hafizabad, Punjab', pageWidth / 2, yPos + 18, { align: 'center' });
+      pdf.text('+92-300-1234567', pageWidth / 2, yPos + 23, { align: 'center' });
+      pdf.text('www.usmanhardware.com', pageWidth / 2, yPos + 28, { align: 'center' });
 
-      yPos += 45;
+      yPos += 40;
 
-      // DECORATIVE SEPARATOR
+      // RECEIPT TITLE
       pdf.setTextColor(0, 0, 0);
-      pdf.setDrawColor(26, 54, 93);
-      pdf.setLineWidth(0.5);
-      for (let i = 0; i < pageWidth - 10; i += 3) {
-        pdf.circle(5 + i, yPos, 0.3, 'F');
-      }
-      yPos += 5;
-
-      // RECEIPT TITLE with elegant box
       pdf.setFillColor(248, 250, 252);
-      pdf.roundedRect(5, yPos, pageWidth - 10, 12, 1, 1, 'F');
+      pdf.roundedRect(6, yPos, pageWidth - 12, 10, 1, 1, 'F');
       pdf.setDrawColor(26, 54, 93);
       pdf.setLineWidth(0.3);
-      pdf.roundedRect(5, yPos, pageWidth - 10, 12, 1, 1, 'S');
+      pdf.roundedRect(6, yPos, pageWidth - 12, 10, 1, 1, 'S');
       
-      pdf.setFontSize(11);
+      pdf.setFontSize(10);
       pdf.setFont('helvetica', 'bold');
       pdf.setTextColor(26, 54, 93);
-      pdf.text('✦ SALES RECEIPT ✦', pageWidth / 2, yPos + 8, { align: 'center' });
+      pdf.text('SALES RECEIPT', pageWidth / 2, yPos + 6.5, { align: 'center' });
       
-      yPos += 18;
+      yPos += 16;
 
-      // RECEIPT DETAILS with icons and beautiful formatting
+      // RECEIPT DETAILS with proper spacing
       pdf.setTextColor(0, 0, 0);
       pdf.setFontSize(8);
       pdf.setFont('helvetica', 'normal');
       
-      // Receipt Info Box
+      // Clean info section
       pdf.setFillColor(252, 252, 254);
-      pdf.roundedRect(3, yPos, pageWidth - 6, 28, 1, 1, 'F');
-      pdf.setDrawColor(200, 200, 220);
-      pdf.setLineWidth(0.2);
-      pdf.roundedRect(3, yPos, pageWidth - 6, 28, 1, 1, 'S');
+      pdf.roundedRect(5, yPos, pageWidth - 10, 26, 1, 1, 'F');
       
-      yPos += 5;
+      yPos += 4;
       
       pdf.setFont('helvetica', 'bold');
-      pdf.text('📋 Receipt:', 6, yPos);
+      pdf.text('Receipt:', 8, yPos);
       pdf.setFont('helvetica', 'normal');
-      pdf.text(order.orderNumber, 30, yPos);
+      pdf.text(order.orderNumber, 25, yPos);
       yPos += 5;
       
       pdf.setFont('helvetica', 'bold');
-      pdf.text('📅 Date:', 6, yPos);
+      pdf.text('Date:', 8, yPos);
       pdf.setFont('helvetica', 'normal');
-      pdf.text(new Date(order.date).toLocaleDateString('en-GB'), 30, yPos);
+      pdf.text(new Date(order.date).toLocaleDateString('en-GB'), 25, yPos);
       yPos += 5;
       
       pdf.setFont('helvetica', 'bold');
-      pdf.text('🕒 Time:', 6, yPos);
+      pdf.text('Time:', 8, yPos);
       pdf.setFont('helvetica', 'normal');
-      pdf.text(order.time, 30, yPos);
+      pdf.text(order.time, 25, yPos);
       yPos += 5;
       
       pdf.setFont('helvetica', 'bold');
-      pdf.text('👤 Customer:', 6, yPos);
+      pdf.text('Customer:', 8, yPos);
       pdf.setFont('helvetica', 'normal');
       const customerName = order.customerName || 'Walk-in Customer';
-      pdf.text(customerName.length > 25 ? customerName.substring(0, 25) + '...' : customerName, 30, yPos);
+      pdf.text(customerName.length > 23 ? customerName.substring(0, 23) + '...' : customerName, 25, yPos);
       yPos += 5;
       
       pdf.setFont('helvetica', 'bold');
-      pdf.text('👨‍💼 Cashier:', 6, yPos);
+      pdf.text('Cashier:', 8, yPos);
       pdf.setFont('helvetica', 'normal');
-      pdf.text(order.createdBy, 30, yPos);
+      pdf.text(order.createdBy, 25, yPos);
       yPos += 8;
 
-      // ITEMS SECTION with beautiful table
+      // ITEMS HEADER
       pdf.setFillColor(26, 54, 93);
-      pdf.roundedRect(3, yPos, pageWidth - 6, 8, 1, 1, 'F');
+      pdf.roundedRect(5, yPos, pageWidth - 10, 7, 1, 1, 'F');
       
       pdf.setTextColor(255, 255, 255);
       pdf.setFont('helvetica', 'bold');
       pdf.setFontSize(7);
-      pdf.text('ITEM', 6, yPos + 5);
-      pdf.text('QTY', pageWidth - 35, yPos + 5);
-      pdf.text('RATE', pageWidth - 25, yPos + 5);
-      pdf.text('TOTAL', pageWidth - 12, yPos + 5);
+      pdf.text('ITEM', 8, yPos + 4.5);
+      pdf.text('QTY', pageWidth - 30, yPos + 4.5);
+      pdf.text('RATE', pageWidth - 20, yPos + 4.5);
+      pdf.text('TOTAL', pageWidth - 8, yPos + 4.5);
       
-      yPos += 8;
+      yPos += 7;
 
-      // Items with alternating backgrounds
+      // ITEMS with complete product names and proper spacing
       pdf.setTextColor(0, 0, 0);
       pdf.setFont('helvetica', 'normal');
       pdf.setFontSize(7);
       
       order.items.forEach((item: any, index: number) => {
+        // Calculate how many lines needed for product name
+        const maxCharsPerLine = 22;
+        const productName = item.productName;
+        const lines = [];
+        
+        if (productName.length <= maxCharsPerLine) {
+          lines.push(productName);
+        } else {
+          // Split into multiple lines
+          let remaining = productName;
+          while (remaining.length > maxCharsPerLine) {
+            let breakPoint = maxCharsPerLine;
+            // Try to break at a space
+            const lastSpace = remaining.substring(0, maxCharsPerLine).lastIndexOf(' ');
+            if (lastSpace > maxCharsPerLine * 0.7) {
+              breakPoint = lastSpace;
+            }
+            lines.push(remaining.substring(0, breakPoint));
+            remaining = remaining.substring(breakPoint).trim();
+          }
+          if (remaining.length > 0) {
+            lines.push(remaining);
+          }
+        }
+        
+        const itemHeight = Math.max(5, lines.length * 4);
+        
         // Alternating row colors for better readability
         if (index % 2 === 1) {
           pdf.setFillColor(248, 250, 252);
-          pdf.rect(3, yPos, pageWidth - 6, 6, 'F');
+          pdf.rect(5, yPos, pageWidth - 10, itemHeight, 'F');
         }
         
-        // Product name with elegant truncation
-        const productName = item.productName.length > 28 
-          ? item.productName.substring(0, 28) + '...' 
-          : item.productName;
+        // Product name - complete with line breaks
+        lines.forEach((line, lineIndex) => {
+          pdf.text(line, 8, yPos + 3 + (lineIndex * 3.5));
+        });
         
-        pdf.text(productName, 6, yPos + 4);
-        pdf.text(item.quantity.toString(), pageWidth - 33, yPos + 4);
-        pdf.text(item.unitPrice.toFixed(0), pageWidth - 24, yPos + 4);
-        pdf.text(item.total.toFixed(0), pageWidth - 10, yPos + 4);
-        yPos += 6;
+        // Quantity, rate, total aligned properly
+        pdf.text(item.quantity.toString(), pageWidth - 28, yPos + 3);
+        pdf.text(item.unitPrice.toFixed(0), pageWidth - 18, yPos + 3);
+        pdf.text(item.total.toFixed(0), pageWidth - 6, yPos + 3);
+        
+        yPos += itemHeight;
       });
 
-      // Beautiful separator line
-      yPos += 2;
+      // SEPARATOR LINE
+      yPos += 3;
       pdf.setDrawColor(26, 54, 93);
       pdf.setLineWidth(0.5);
-      pdf.line(6, yPos, pageWidth - 6, yPos);
-      yPos += 5;
+      pdf.line(8, yPos, pageWidth - 8, yPos);
+      yPos += 6;
 
-      // TOTALS SECTION with elegant styling
-      pdf.setFillColor(252, 252, 254);
-      pdf.roundedRect(pageWidth - 40, yPos, 35, 20, 1, 1, 'F');
-      pdf.setDrawColor(200, 200, 220);
-      pdf.setLineWidth(0.2);
-      pdf.roundedRect(pageWidth - 40, yPos, 35, 20, 1, 1, 'S');
+      // TOTALS SECTION - right aligned and properly spaced
+      const totalsStartX = pageWidth - 35;
       
       pdf.setFontSize(7);
       pdf.setFont('helvetica', 'normal');
       
-      const totalsX = pageWidth - 37;
-      yPos += 4;
-      
-      pdf.text('Subtotal:', totalsX - 15, yPos);
-      pdf.text(`PKR ${order.subtotal.toFixed(0)}`, totalsX, yPos);
+      pdf.text('Subtotal:', totalsStartX - 5, yPos);
+      pdf.text(`PKR ${order.subtotal.toFixed(0)}`, totalsStartX + 15, yPos);
       yPos += 4;
       
       if (order.discount > 0) {
         pdf.setTextColor(220, 38, 127);
-        pdf.text('Discount:', totalsX - 15, yPos);
-        pdf.text(`-PKR ${order.discount.toFixed(0)}`, totalsX, yPos);
+        pdf.text('Discount:', totalsStartX - 5, yPos);
+        pdf.text(`-PKR ${order.discount.toFixed(0)}`, totalsStartX + 15, yPos);
         pdf.setTextColor(0, 0, 0);
         yPos += 4;
       }
       
       if (order.tax > 0) {
-        pdf.text('Tax:', totalsX - 15, yPos);
-        pdf.text(`PKR ${order.tax.toFixed(0)}`, totalsX, yPos);
+        pdf.text('Tax:', totalsStartX - 5, yPos);
+        pdf.text(`PKR ${order.tax.toFixed(0)}`, totalsStartX + 15, yPos);
         yPos += 4;
       }
       
       // Grand Total with emphasis
       pdf.setFillColor(26, 54, 93);
-      pdf.roundedRect(pageWidth - 40, yPos, 35, 8, 1, 1, 'F');
+      pdf.roundedRect(totalsStartX - 8, yPos, 30, 6, 1, 1, 'F');
       
       pdf.setTextColor(255, 255, 255);
       pdf.setFont('helvetica', 'bold');
       pdf.setFontSize(8);
-      pdf.text('TOTAL:', totalsX - 15, yPos + 5);
-      pdf.text(`PKR ${order.total.toFixed(0)}`, totalsX, yPos + 5);
+      pdf.text('TOTAL:', totalsStartX - 5, yPos + 4);
+      pdf.text(`PKR ${order.total.toFixed(0)}`, totalsStartX + 15, yPos + 4);
       
-      yPos += 15;
+      yPos += 12;
 
-      // PAYMENT METHOD with beautiful badge
+      // PAYMENT METHOD centered
       pdf.setTextColor(0, 0, 0);
       pdf.setFontSize(8);
       pdf.setFont('helvetica', 'bold');
-      pdf.text('💳 Payment Method:', 6, yPos);
+      pdf.text('Payment Method:', pageWidth / 2, yPos, { align: 'center' });
+      yPos += 5;
       
-      // Payment badge
+      // Payment badge centered
       const paymentColor = order.paymentMethod === 'cash' ? [34, 197, 94] : [59, 130, 246];
       pdf.setFillColor(paymentColor[0], paymentColor[1], paymentColor[2]);
-      pdf.roundedRect(6, yPos + 3, 25, 6, 2, 2, 'F');
+      pdf.roundedRect(pageWidth / 2 - 12, yPos, 24, 5, 2, 2, 'F');
       
       pdf.setTextColor(255, 255, 255);
       pdf.setFont('helvetica', 'bold');
       pdf.setFontSize(7);
-      pdf.text(order.paymentMethod.toUpperCase(), 18.5, yPos + 7, { align: 'center' });
+      pdf.text(order.paymentMethod.toUpperCase(), pageWidth / 2, yPos + 3.5, { align: 'center' });
       
-      yPos += 15;
+      yPos += 12;
 
-      // QR CODE SECTION with beautiful frame
+      // QR CODE SECTION centered
       pdf.setTextColor(0, 0, 0);
       pdf.setFontSize(8);
       pdf.setFont('helvetica', 'bold');
-      pdf.text('🔍 Scan to Verify:', 6, yPos);
+      pdf.text('Scan to Verify:', pageWidth / 2, yPos, { align: 'center' });
+      yPos += 4;
       
-      // Elegant QR frame
+      // QR frame centered
+      const qrSize = 20;
+      const qrX = pageWidth / 2 - qrSize / 2;
+      
       pdf.setFillColor(255, 255, 255);
-      pdf.roundedRect(pageWidth / 2 - 12, yPos + 3, 24, 24, 2, 2, 'F');
+      pdf.roundedRect(qrX - 2, yPos, qrSize + 4, qrSize + 4, 1, 1, 'F');
       pdf.setDrawColor(26, 54, 93);
-      pdf.setLineWidth(1);
-      pdf.roundedRect(pageWidth / 2 - 12, yPos + 3, 24, 24, 2, 2, 'S');
+      pdf.setLineWidth(0.5);
+      pdf.roundedRect(qrX - 2, yPos, qrSize + 4, qrSize + 4, 1, 1, 'S');
       
-      pdf.addImage(qrCodeDataURL, 'PNG', pageWidth / 2 - 10, yPos + 5, 20, 20);
+      pdf.addImage(qrCodeDataURL, 'PNG', qrX, yPos + 2, qrSize, qrSize);
       
-      yPos += 30;
+      yPos += 28;
 
-      // THANK YOU MESSAGE with decorative elements
+      // THANK YOU MESSAGE centered
       pdf.setFillColor(248, 250, 252);
-      pdf.roundedRect(3, yPos, pageWidth - 6, 18, 2, 2, 'F');
-      pdf.setDrawColor(26, 54, 93);
-      pdf.setLineWidth(0.3);
-      pdf.roundedRect(3, yPos, pageWidth - 6, 18, 2, 2, 'S');
+      pdf.roundedRect(6, yPos, pageWidth - 12, 15, 2, 2, 'F');
       
       pdf.setFontSize(9);
       pdf.setFont('helvetica', 'bold');
       pdf.setTextColor(26, 54, 93);
-      pdf.text('✨ Thank You! ✨', pageWidth / 2, yPos + 6, { align: 'center' });
+      pdf.text('Thank You!', pageWidth / 2, yPos + 6, { align: 'center' });
       
       pdf.setFontSize(6);
       pdf.setFont('helvetica', 'normal');
       pdf.setTextColor(100, 100, 100);
-      pdf.text('Your trust means everything to us', pageWidth / 2, yPos + 11, { align: 'center' });
-      pdf.text('Visit us again soon!', pageWidth / 2, yPos + 15, { align: 'center' });
+      pdf.text('Your trust means everything to us', pageWidth / 2, yPos + 10, { align: 'center' });
+      pdf.text('Visit us again soon!', pageWidth / 2, yPos + 13, { align: 'center' });
       
-      yPos += 25;
+      yPos += 20;
 
-      // POLICIES & CONTACT with elegant formatting
+      // FOOTER POLICIES centered
       pdf.setFillColor(26, 54, 93);
-      pdf.roundedRect(3, yPos, pageWidth - 6, 20, 1, 1, 'F');
+      pdf.roundedRect(4, yPos, pageWidth - 8, 18, 1, 1, 'F');
       
       pdf.setTextColor(255, 255, 255);
       pdf.setFontSize(6);
@@ -400,14 +414,14 @@ const Orders = () => {
       
       pdf.setFont('helvetica', 'normal');
       pdf.setFontSize(5);
-      pdf.text('• Items exchangeable within 7 days', pageWidth / 2, yPos + 8, { align: 'center' });
-      pdf.text('• Original receipt required', pageWidth / 2, yPos + 11, { align: 'center' });
-      pdf.text('• Support: +92-300-1234567', pageWidth / 2, yPos + 14, { align: 'center' });
-      pdf.text('• Hours: Mon-Sat 9AM-8PM', pageWidth / 2, yPos + 17, { align: 'center' });
+      pdf.text('Items exchangeable within 7 days', pageWidth / 2, yPos + 7, { align: 'center' });
+      pdf.text('Original receipt required', pageWidth / 2, yPos + 10, { align: 'center' });
+      pdf.text('Support: +92-300-1234567', pageWidth / 2, yPos + 13, { align: 'center' });
+      pdf.text('Hours: Mon-Sat 9AM-8PM', pageWidth / 2, yPos + 16, { align: 'center' });
       
-      yPos += 25;
+      yPos += 23;
 
-      // FOOTER with timestamp
+      // FINAL FOOTER centered
       pdf.setTextColor(120, 120, 120);
       pdf.setFontSize(5);
       pdf.setFont('helvetica', 'normal');
@@ -418,8 +432,8 @@ const Orders = () => {
       pdf.save(`UH_Receipt_${order.orderNumber}_80mm.pdf`);
       
       toast({
-        title: "Beautiful 80mm Receipt Generated! 🎉",
-        description: `Thermal receipt for order ${order.orderNumber} downloaded with elegant design and watermark`,
+        title: "Perfect 80mm Receipt Generated!",
+        description: `Clean thermal receipt for order ${order.orderNumber} with complete product names and proper alignment`,
       });
     } catch (error) {
       console.error('Failed to generate 80mm receipt:', error);
