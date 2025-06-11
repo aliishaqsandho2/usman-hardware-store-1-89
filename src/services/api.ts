@@ -1,488 +1,301 @@
-const BASE_URL = 'https://zaidawn.site/wp-json/ims/v1';
+import { useToast } from "@/hooks/use-toast";
+import axios from "axios";
 
-// API response types
-export interface ApiResponse<T> {
-  success: boolean;
-  data: T;
-  message?: string;
-}
+// WordPress REST API Base URL
+const API_BASE_URL = 'https://zaidawn.site/wp-json/ims/v1';
 
-export interface PaginatedResponse<T> {
-  success: boolean;
-  data: {
-    [key: string]: T[] | {
-      currentPage: number;
-      totalPages: number;
-      totalItems: number;
-      itemsPerPage: number;
-      hasNextPage: boolean;
-      hasPreviousPage: boolean;
-    };
-  };
-}
+const instance = axios.create({
+  baseURL: API_BASE_URL,
+  headers: {
+    'Content-Type': 'application/json',
+  },
+});
 
-// Enhanced Dashboard Data Types
-export interface EnhancedDashboardData {
-  financial: {
-    todayRevenue: number;
-    yesterdayRevenue: number;
-    monthRevenue: number;
-    lastMonthRevenue: number;
-    monthExpenses: number;
-    grossProfit: number;
-    netProfit: number;
-    profitMargin: number;
-    revenueGrowth: number;
-    monthlyGrowth: number;
-  };
-  sales: {
-    todaySales: number;
-    weekSales: number;
-    avgOrderValue: number;
-    pendingOrdersValue: number;
-    paymentMethods: Array<{
-      method: string;
-      count: number;
-      amount: number;
-    }>;
-    highValueSales: Array<{
-      orderNumber: string;
-      amount: number;
-      customer: string;
-      date: string;
-    }>;
-  };
-  inventory: {
-    totalInventoryValue: number;
-    retailInventoryValue: number;
-    lowStockItems: number;
-    outOfStockItems: number;
-    overstockItems: number;
-    fastMovingProducts: Array<{
-      name: string;
-      sold: number;
-      remaining: number;
-    }>;
-    deadStockValue: number;
-    inventoryTurnover: number;
-  };
-  customers: {
-    totalCustomers: number;
-    newCustomersThisMonth: number;
-    avgCustomerValue: number;
-    topCustomers: Array<{
-      name: string;
-      totalPurchases: number;
-      balance: number;
-    }>;
-    customerTypes: Array<{
-      type: string;
-      count: number;
-    }>;
-    totalReceivables: number;
-  };
-  performance: {
-    weeklyTrend: Array<{
-      week: string;
-      revenue: number;
-      orders: number;
-    }>;
-    dailyAvgRevenue: number;
-    dailyAvgOrders: number;
-    categoryPerformance: Array<{
-      category: string;
-      revenue: number;
-      unitsSold: number;
-    }>;
-  };
-  cashFlow: {
-    monthlyInflows: number;
-    monthlyOutflows: number;
-    netCashFlow: number;
-    recentPayments: Array<{
-      customer: string;
-      amount: number;
-      date: string;
-    }>;
-  };
-  alerts: Array<{
-    type: string;
-    title: string;
-    message: string;
-    action: string;
-  }>;
-}
-
-// Generic API request function
-const apiRequest = async <T>(
-  endpoint: string,
-  options: RequestInit = {}
-): Promise<T> => {
-  const url = `${BASE_URL}${endpoint}`;
-
-  try {
-    const response = await fetch(url, {
-      headers: {
-        'Content-Type': 'application/json',
-        ...options.headers,
-      },
-      ...options,
-    });
-
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-
-    const data = await response.json();
-    return data;
-  } catch (error) {
-    console.error('API request failed:', error);
-    throw error;
+instance.interceptors.response.use(
+  (response) => {
+    return response.data;
+  },
+  (error) => {
+    console.error("API Error:", error);
+    return Promise.reject(error);
   }
-};
+);
 
-// Dashboard API
-export const dashboardApi = {
-  getStats: () => apiRequest<ApiResponse<any>>('/dashboard/stats'),
-  getEnhancedStats: () => apiRequest<ApiResponse<EnhancedDashboardData>>('/dashboard/enhanced-stats'),
-  getRevenueTrend: () => apiRequest<ApiResponse<any>>('/dashboard/revenue-trend'),
-  getCategoryPerformance: () => apiRequest<ApiResponse<any>>('/dashboard/category-performance'),
-  getDailySales: () => apiRequest<ApiResponse<any>>('/dashboard/daily-sales'),
-  getInventoryStatus: () => apiRequest<ApiResponse<any>>('/dashboard/inventory-status'),
-};
-
-// Products API
 export const productsApi = {
-  getAll: (params?: {
-    page?: number;
-    limit?: number;
-    search?: string;
-    category?: string;
-    status?: string;
-    sortBy?: string;
-    sortOrder?: string;
-  }) => {
-    const queryParams = new URLSearchParams();
-    if (params) {
-      Object.entries(params).forEach(([key, value]) => {
-        if (value) queryParams.append(key, value.toString());
-      });
+  getAll: async (params = {}) => {
+    try {
+      const response = await instance.get('/products', { params });
+      return response;
+    } catch (error) {
+      console.error("Failed to fetch products:", error);
+      throw error;
     }
-    const query = queryParams.toString();
-    return apiRequest<any>(`/products${query ? `?${query}` : ''}`);
   },
-  
-  getById: (id: number) => apiRequest<ApiResponse<any>>(`/products/${id}`),
-  
-  create: (product: any) => 
-    apiRequest<ApiResponse<any>>('/products', {
-      method: 'POST',
-      body: JSON.stringify(product),
-    }),
-  
-  update: (id: number, product: any) =>
-    apiRequest<ApiResponse<any>>(`/products/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify(product),
-    }),
-  
-  delete: (id: number) =>
-    apiRequest<ApiResponse<any>>(`/products/${id}`, {
-      method: 'DELETE',
-    }),
-  
-  adjustStock: (id: number, adjustment: any) =>
-    apiRequest<ApiResponse<any>>(`/products/${id}/stock-adjustment`, {
-      method: 'POST',
-      body: JSON.stringify(adjustment),
-    }),
+
+  getById: async (id: number) => {
+    try {
+      const response = await instance.get(`/products/${id}`);
+      return response;
+    } catch (error) {
+      console.error(`Failed to fetch product with ID ${id}:`, error);
+      throw error;
+    }
+  },
+
+  create: async (productData: any) => {
+    try {
+      const response = await instance.post('/products', productData);
+      return response;
+    } catch (error) {
+      console.error("Failed to create product:", error);
+      throw error;
+    }
+  },
+
+  update: async (id: number, productData: any) => {
+    try {
+      const response = await instance.put(`/products/${id}`, productData);
+      return response;
+    } catch (error) {
+      console.error(`Failed to update product with ID ${id}:`, error);
+      throw error;
+    }
+  },
+
+  delete: async (id: number) => {
+    try {
+      const response = await instance.delete(`/products/${id}`);
+      return response;
+    } catch (error) {
+      console.error(`Failed to delete product with ID ${id}:`, error);
+      throw error;
+    }
+  },
 };
 
-// Categories API
-export const categoriesApi = {
-  getAll: () => apiRequest<ApiResponse<string[]>>('/categories'),
-  create: (category: { name: string }) =>
-    apiRequest<ApiResponse<any>>('/categories', {
-      method: 'POST',
-      body: JSON.stringify(category),
-    }),
-};
-
-// Units API
-export const unitsApi = {
-  getAll: () => apiRequest<ApiResponse<any[]>>('/units'),
-  create: (unit: { name: string; label: string }) =>
-    apiRequest<ApiResponse<any>>('/units', {
-      method: 'POST',
-      body: JSON.stringify(unit),
-    }),
-};
-
-// Customers API
 export const customersApi = {
-  getAll: (params?: {
-    page?: number;
-    limit?: number;
-    search?: string;
-    type?: string;
-    status?: string;
-  }) => {
-    const queryParams = new URLSearchParams();
-    if (params) {
-      Object.entries(params).forEach(([key, value]) => {
-        if (value) queryParams.append(key, value.toString());
-      });
+  getAll: async (params = {}) => {
+    try {
+      const response = await instance.get('/customers', { params });
+      return response;
+    } catch (error) {
+      console.error("Failed to fetch customers:", error);
+      throw error;
     }
-    const query = queryParams.toString();
-    return apiRequest<any>(`/customers${query ? `?${query}` : ''}`);
   },
-  
-  getById: (id: number) => apiRequest<ApiResponse<any>>(`/customers/${id}`),
-  
-  create: (customer: any) =>
-    apiRequest<ApiResponse<any>>('/customers', {
-      method: 'POST',
-      body: JSON.stringify(customer),
-    }),
-  
-  update: (id: number, customer: any) =>
-    apiRequest<ApiResponse<any>>(`/customers/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify(customer),
-    }),
 
-  // NEW: Delete customer endpoint
-  delete: (id: number) =>
-    apiRequest<ApiResponse<any>>(`/customers/${id}`, {
-      method: 'DELETE',
-    }),
+  getById: async (id: number) => {
+    try {
+      const response = await instance.get(`/customers/${id}`);
+      return response;
+    } catch (error) {
+      console.error(`Failed to fetch customer with ID ${id}:`, error);
+      throw error;
+    }
+  },
+
+  create: async (customerData: any) => {
+    try {
+      const response = await instance.post('/customers', customerData);
+      return response;
+    } catch (error) {
+      console.error("Failed to create customer:", error);
+      throw error;
+    }
+  },
+
+  update: async (id: number, customerData: any) => {
+    try {
+      const response = await instance.put(`/customers/${id}`, customerData);
+      return response;
+    } catch (error) {
+      console.error(`Failed to update customer with ID ${id}:`, error);
+      throw error;
+    }
+  },
+
+  delete: async (id: number) => {
+    try {
+      const response = await instance.delete(`/customers/${id}`);
+      return response;
+    } catch (error) {
+      console.error(`Failed to delete customer with ID ${id}:`, error);
+      throw error;
+    }
+  },
 };
 
-// Sales API
 export const salesApi = {
-  getAll: (params?: {
-    page?: number;
-    limit?: number;
-    dateFrom?: string;
-    dateTo?: string;
-    customerId?: number;
-    status?: string;
-  }) => {
-    const queryParams = new URLSearchParams();
-    if (params) {
-      Object.entries(params).forEach(([key, value]) => {
-        if (value) queryParams.append(key, value.toString());
-      });
+  getAll: async (params = {}) => {
+    try {
+      const response = await instance.get('/sales', { params });
+      return response;
+    } catch (error) {
+      console.error("Failed to fetch sales:", error);
+      throw error;
     }
-    const query = queryParams.toString();
-    return apiRequest<any>(`/sales${query ? `?${query}` : ''}`);
   },
-  
-  getById: (id: number) => apiRequest<ApiResponse<any>>(`/sales/${id}`),
-  
-  create: (sale: any) =>
-    apiRequest<ApiResponse<any>>('/sales', {
-      method: 'POST',
-      body: JSON.stringify(sale),
-    }),
-  
-  updateStatus: (id: number, status: any) =>
-    apiRequest<ApiResponse<any>>(`/sales/${id}/status`, {
-      method: 'PUT',
-      body: JSON.stringify(status),
-    }),
 
-  // NEW: Order adjustment endpoint
-  adjustOrder: (id: number, adjustment: any) =>
-    apiRequest<ApiResponse<any>>(`/sales/${id}/adjust`, {
-      method: 'POST',
-      body: JSON.stringify(adjustment),
-    }),
+  getById: async (id: number) => {
+    try {
+      const response = await instance.get(`/sales/${id}`);
+      return response;
+    } catch (error) {
+      console.error(`Failed to fetch sale with ID ${id}:`, error);
+      throw error;
+    }
+  },
 
-  // NEW: PDF receipt generation endpoint
-  generatePDF: (id: number) => 
-    apiRequest<Blob>(`/sales/${id}/pdf`, {
-      headers: {
-        'Accept': 'application/pdf',
-      },
-    }),
+  create: async (saleData) => {
+    try {
+      const response = await instance.post('/sales', saleData);
+      return response;
+    } catch (error) {
+      console.error("Failed to create sale:", error);
+      throw error;
+    }
+  },
+
+  update: async (id, updateData) => {
+    try {
+      console.log('Updating sale with ID:', id, 'Data:', updateData);
+      
+      const response = await fetch(`${API_BASE_URL}/sales/${id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(updateData)
+      });
+
+      console.log('Update response status:', response.status);
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Update error response:', errorText);
+        throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
+      }
+
+      const result = await response.json();
+      console.log('Update result:', result);
+      return result;
+    } catch (error) {
+      console.error('Sales update error:', error);
+      throw error;
+    }
+  },
+
+  delete: async (id: number) => {
+    try {
+      const response = await instance.delete(`/sales/${id}`);
+      return response;
+    } catch (error) {
+      console.error(`Failed to delete sale with ID ${id}:`, error);
+      throw error;
+    }
+  },
 };
 
-// Inventory API
-export const inventoryApi = {
-  getAll: (params?: {
-    page?: number;
-    limit?: number;
-    search?: string;
-    category?: string;
-    lowStock?: boolean;
-    outOfStock?: boolean;
-  }) => {
-    const queryParams = new URLSearchParams();
-    if (params) {
-      Object.entries(params).forEach(([key, value]) => {
-        if (value !== undefined) queryParams.append(key, value.toString());
-      });
-    }
-    const query = queryParams.toString();
-    return apiRequest<any>(`/inventory${query ? `?${query}` : ''}`);
-  },
-  
-  getMovements: (params?: {
-    page?: number;
-    limit?: number;
-    productId?: number;
-    type?: string;
-    dateFrom?: string;
-    dateTo?: string;
-  }) => {
-    const queryParams = new URLSearchParams();
-    if (params) {
-      Object.entries(params).forEach(([key, value]) => {
-        if (value) queryParams.append(key, value.toString());
-      });
-    }
-    const query = queryParams.toString();
-    return apiRequest<any>(`/inventory/movements${query ? `?${query}` : ''}`);
-  },
-  
-  restock: (restock: any) =>
-    apiRequest<ApiResponse<any>>('/inventory/restock', {
-      method: 'POST',
-      body: JSON.stringify(restock),
-    }),
-};
-
-// Notifications API
-export const notificationsApi = {
-  getAll: (params?: {
-    page?: number;
-    limit?: number;
-    type?: string;
-    read?: boolean;
-  }) => {
-    const queryParams = new URLSearchParams();
-    if (params) {
-      Object.entries(params).forEach(([key, value]) => {
-        if (value !== undefined) queryParams.append(key, value.toString());
-      });
-    }
-    const query = queryParams.toString();
-    return apiRequest<any>(`/notifications${query ? `?${query}` : ''}`);
-  },
-  
-  markAsRead: (id: number) =>
-    apiRequest<ApiResponse<any>>(`/notifications/${id}/read`, {
-      method: 'PUT',
-    }),
-  
-  markAllAsRead: () =>
-    apiRequest<ApiResponse<any>>('/notifications/mark-all-read', {
-      method: 'PUT',
-    }),
-};
-
-// Suppliers API
 export const suppliersApi = {
-  getAll: (params?: {
-    page?: number;
-    limit?: number;
-    search?: string;
-    status?: string;
-  }) => {
-    const queryParams = new URLSearchParams();
-    if (params) {
-      Object.entries(params).forEach(([key, value]) => {
-        if (value) queryParams.append(key, value.toString());
-      });
+  getAll: async (params = {}) => {
+    try {
+      const response = await instance.get('/suppliers', { params });
+      return response;
+    } catch (error) {
+      console.error("Failed to fetch suppliers:", error);
+      throw error;
     }
-    const query = queryParams.toString();
-    return apiRequest<any>(`/suppliers${query ? `?${query}` : ''}`);
   },
-  
-  getById: (id: number) => apiRequest<ApiResponse<any>>(`/suppliers/${id}`),
-  
-  create: (supplier: any) =>
-    apiRequest<ApiResponse<any>>('/suppliers', {
-      method: 'POST',
-      body: JSON.stringify(supplier),
-    }),
-  
-  update: (id: number, supplier: any) =>
-    apiRequest<ApiResponse<any>>(`/suppliers/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify(supplier),
-    }),
-  
-  delete: (id: number) =>
-    apiRequest<ApiResponse<any>>(`/suppliers/${id}`, {
-      method: 'DELETE',
-    }),
+
+  getById: async (id: number) => {
+    try {
+      const response = await instance.get(`/suppliers/${id}`);
+      return response;
+    } catch (error) {
+      console.error(`Failed to fetch supplier with ID ${id}:`, error);
+      throw error;
+    }
+  },
+
+  create: async (supplierData: any) => {
+    try {
+      const response = await instance.post('/suppliers', supplierData);
+      return response;
+    } catch (error) {
+      console.error("Failed to create supplier:", error);
+      throw error;
+    }
+  },
+
+  update: async (id: number, supplierData: any) => {
+    try {
+      const response = await instance.put(`/suppliers/${id}`, supplierData);
+      return response;
+    } catch (error) {
+      console.error(`Failed to update supplier with ID ${id}:`, error);
+      throw error;
+    }
+  },
+
+  delete: async (id: number) => {
+    try {
+      const response = await instance.delete(`/suppliers/${id}`);
+      return response;
+    } catch (error) {
+      console.error(`Failed to delete supplier with ID ${id}:`, error);
+      throw error;
+    }
+  },
 };
 
-// Purchase Orders API
 export const purchaseOrdersApi = {
-  getAll: (params?: {
-    page?: number;
-    limit?: number;
-    supplierId?: number;
-    status?: string;
-    dateFrom?: string;
-    dateTo?: string;
-  }) => {
-    const queryParams = new URLSearchParams();
-    if (params) {
-      Object.entries(params).forEach(([key, value]) => {
-        if (value) queryParams.append(key, value.toString());
-      });
+  getAll: async (params = {}) => {
+    try {
+      const response = await instance.get('/purchase-orders', { params });
+      return response;
+    } catch (error) {
+      console.error("Failed to fetch purchase orders:", error);
+      throw error;
     }
-    const query = queryParams.toString();
-    return apiRequest<any>(`/purchase-orders${query ? `?${query}` : ''}`);
   },
-  
-  getById: (id: number) => apiRequest<ApiResponse<any>>(`/purchase-orders/${id}`),
-  
-  create: (order: any) =>
-    apiRequest<ApiResponse<any>>('/purchase-orders', {
-      method: 'POST',
-      body: JSON.stringify(order),
-    }),
-  
-  receive: (id: number, data: any) =>
-    apiRequest<ApiResponse<any>>(`/purchase-orders/${id}/receive`, {
-      method: 'PUT',
-      body: JSON.stringify(data),
-    }),
-};
 
-// Quotations API
-export const quotationsApi = {
-  getAll: (params?: {
-    page?: number;
-    limit?: number;
-    customerId?: number;
-    status?: string;
-  }) => {
-    const queryParams = new URLSearchParams();
-    if (params) {
-      Object.entries(params).forEach(([key, value]) => {
-        if (value) queryParams.append(key, value.toString());
-      });
+  getById: async (id: number) => {
+    try {
+      const response = await instance.get(`/purchase-orders/${id}`);
+      return response;
+    } catch (error) {
+      console.error(`Failed to fetch purchase order with ID ${id}:`, error);
+      throw error;
     }
-    const query = queryParams.toString();
-    return apiRequest<any>(`/quotations${query ? `?${query}` : ''}`);
   },
-  
-  getById: (id: number) => apiRequest<ApiResponse<any>>(`/quotations/${id}`),
-  
-  create: (quotation: any) =>
-    apiRequest<ApiResponse<any>>('/quotations', {
-      method: 'POST',
-      body: JSON.stringify(quotation),
-    }),
-  
-  convertToSale: (id: number) =>
-    apiRequest<ApiResponse<any>>(`/quotations/${id}/convert-to-sale`, {
-      method: 'PUT',
-    }),
+
+  create: async (poData: any) => {
+    try {
+      const response = await instance.post('/purchase-orders', poData);
+      return response;
+    } catch (error) {
+      console.error("Failed to create purchase order:", error);
+      throw error;
+    }
+  },
+
+   update: async (id: number, poData: any) => {
+    try {
+      const response = await instance.put(`/purchase-orders/${id}`, poData);
+      return response;
+    } catch (error) {
+      console.error(`Failed to update purchase order with ID ${id}:`, error);
+      throw error;
+    }
+  },
+
+  delete: async (id: number) => {
+    try {
+      const response = await instance.delete(`/purchase-orders/${id}`);
+      return response;
+    } catch (error) {
+      console.error(`Failed to delete purchase order with ID ${id}:`, error);
+      throw error;
+    }
+  },
 };
