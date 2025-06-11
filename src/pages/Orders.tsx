@@ -195,7 +195,7 @@ const Orders = () => {
       
       yPos += 16;
 
-      // RECEIPT DETAILS with proper spacing
+      // RECEIPT DETAILS with proper spacing - LEFT ALIGNED
       pdf.setTextColor(0, 0, 0);
       pdf.setFontSize(8);
       pdf.setFont('helvetica', 'normal');
@@ -237,7 +237,7 @@ const Orders = () => {
       pdf.text(order.createdBy, 25, yPos);
       yPos += 8;
 
-      // ITEMS HEADER
+      // ITEMS HEADER - LEFT ALIGNED
       pdf.setFillColor(26, 54, 93);
       pdf.roundedRect(5, yPos, pageWidth - 10, 7, 1, 1, 'F');
       
@@ -245,20 +245,20 @@ const Orders = () => {
       pdf.setFont('helvetica', 'bold');
       pdf.setFontSize(7);
       pdf.text('ITEM', 8, yPos + 4.5);
-      pdf.text('QTY', pageWidth - 30, yPos + 4.5);
-      pdf.text('RATE', pageWidth - 20, yPos + 4.5);
-      pdf.text('TOTAL', pageWidth - 8, yPos + 4.5);
+      pdf.text('QTY', 50, yPos + 4.5);
+      pdf.text('RATE', 58, yPos + 4.5);
+      pdf.text('TOTAL', 68, yPos + 4.5);
       
       yPos += 7;
 
-      // ITEMS with complete product names and proper spacing
+      // ITEMS with complete product names and proper spacing - LEFT ALIGNED
       pdf.setTextColor(0, 0, 0);
       pdf.setFont('helvetica', 'normal');
       pdf.setFontSize(7);
       
       order.items.forEach((item: any, index: number) => {
         // Calculate how many lines needed for product name
-        const maxCharsPerLine = 22;
+        const maxCharsPerLine = 20;
         const productName = item.productName;
         const lines = [];
         
@@ -290,15 +290,15 @@ const Orders = () => {
           pdf.rect(5, yPos, pageWidth - 10, itemHeight, 'F');
         }
         
-        // Product name - complete with line breaks
+        // Product name - complete with line breaks - LEFT ALIGNED
         lines.forEach((line, lineIndex) => {
           pdf.text(line, 8, yPos + 3 + (lineIndex * 3.5));
         });
         
-        // Quantity, rate, total aligned properly
-        pdf.text(item.quantity.toString(), pageWidth - 28, yPos + 3);
-        pdf.text(item.unitPrice.toFixed(0), pageWidth - 18, yPos + 3);
-        pdf.text(item.total.toFixed(0), pageWidth - 6, yPos + 3);
+        // Quantity, rate, total aligned to specific positions - LEFT ALIGNED
+        pdf.text(item.quantity.toString(), 50, yPos + 3);
+        pdf.text(item.unitPrice.toFixed(0), 58, yPos + 3);
+        pdf.text(item.total.toFixed(0), 68, yPos + 3);
         
         yPos += itemHeight;
       });
@@ -310,39 +310,39 @@ const Orders = () => {
       pdf.line(8, yPos, pageWidth - 8, yPos);
       yPos += 6;
 
-      // TOTALS SECTION - right aligned and properly spaced
-      const totalsStartX = pageWidth - 35;
+      // TOTALS SECTION - LEFT ALIGNED
+      const totalsStartX = 8; // Changed from right-aligned to left-aligned
       
       pdf.setFontSize(7);
       pdf.setFont('helvetica', 'normal');
       
-      pdf.text('Subtotal:', totalsStartX - 5, yPos);
-      pdf.text(`PKR ${order.subtotal.toFixed(0)}`, totalsStartX + 15, yPos);
+      pdf.text('Subtotal:', totalsStartX, yPos);
+      pdf.text(`PKR ${order.subtotal.toFixed(0)}`, totalsStartX + 35, yPos);
       yPos += 4;
       
       if (order.discount > 0) {
         pdf.setTextColor(220, 38, 127);
-        pdf.text('Discount:', totalsStartX - 5, yPos);
-        pdf.text(`-PKR ${order.discount.toFixed(0)}`, totalsStartX + 15, yPos);
+        pdf.text('Discount:', totalsStartX, yPos);
+        pdf.text(`-PKR ${order.discount.toFixed(0)}`, totalsStartX + 35, yPos);
         pdf.setTextColor(0, 0, 0);
         yPos += 4;
       }
       
       if (order.tax > 0) {
-        pdf.text('Tax:', totalsStartX - 5, yPos);
-        pdf.text(`PKR ${order.tax.toFixed(0)}`, totalsStartX + 15, yPos);
+        pdf.text('Tax:', totalsStartX, yPos);
+        pdf.text(`PKR ${order.tax.toFixed(0)}`, totalsStartX + 35, yPos);
         yPos += 4;
       }
       
-      // Grand Total with emphasis
+      // Grand Total with emphasis - LEFT ALIGNED
       pdf.setFillColor(26, 54, 93);
-      pdf.roundedRect(totalsStartX - 8, yPos, 30, 6, 1, 1, 'F');
+      pdf.roundedRect(totalsStartX, yPos, 45, 6, 1, 1, 'F');
       
       pdf.setTextColor(255, 255, 255);
       pdf.setFont('helvetica', 'bold');
       pdf.setFontSize(8);
-      pdf.text('TOTAL:', totalsStartX - 5, yPos + 4);
-      pdf.text(`PKR ${order.total.toFixed(0)}`, totalsStartX + 15, yPos + 4);
+      pdf.text('TOTAL:', totalsStartX + 3, yPos + 4);
+      pdf.text(`PKR ${order.total.toFixed(0)}`, totalsStartX + 25, yPos + 4);
       
       yPos += 12;
 
@@ -985,3 +985,5 @@ const Orders = () => {
 };
 
 export default Orders;
+
+}
