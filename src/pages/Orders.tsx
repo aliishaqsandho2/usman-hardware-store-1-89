@@ -89,15 +89,47 @@ const Orders = () => {
         params.dateTo = dateTo;
       }
 
+      console.log('Fetching orders with params:', params);
       const response = await salesApi.getAll(params);
+      console.log('Orders API response:', response);
       
-      if (response.success) {
-        setOrders(response.data.sales);
-        setTotalPages(response.data.pagination.totalPages);
-        setSummary(response.data.summary);
+      if (response.success && response.data) {
+        // Handle different response structures
+        const ordersData = response.data.sales || response.data || [];
+        const paginationData = response.data.pagination || {};
+        const summaryData = response.data.summary || {};
+        
+        console.log('Orders data:', ordersData);
+        console.log('Pagination data:', paginationData);
+        console.log('Summary data:', summaryData);
+        
+        setOrders(Array.isArray(ordersData) ? ordersData : []);
+        setTotalPages(paginationData.totalPages || 1);
+        setSummary({
+          totalSales: summaryData.totalSales || 0,
+          totalOrders: summaryData.totalOrders || ordersData.length || 0,
+          avgOrderValue: summaryData.avgOrderValue || 0
+        });
+      } else {
+        console.warn('API response not successful or missing data:', response);
+        setOrders([]);
+        setTotalPages(1);
+        setSummary({
+          totalSales: 0,
+          totalOrders: 0,
+          avgOrderValue: 0
+        });
       }
     } catch (error) {
       console.error('Error fetching orders:', error);
+      // Set safe defaults on error
+      setOrders([]);
+      setTotalPages(1);
+      setSummary({
+        totalSales: 0,
+        totalOrders: 0,
+        avgOrderValue: 0
+      });
       toast({
         title: "Error",
         description: "Failed to load orders data",
@@ -504,7 +536,8 @@ const Orders = () => {
     }
   };
 
-  const filteredOrders = orders.filter(order => {
+  // FIXED: Ensure orders is always an array before filtering
+  const filteredOrders = (orders || []).filter(order => {
     const matchesSearch = 
       order.orderNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (order.customerName && order.customerName.toLowerCase().includes(searchTerm.toLowerCase())) ||
