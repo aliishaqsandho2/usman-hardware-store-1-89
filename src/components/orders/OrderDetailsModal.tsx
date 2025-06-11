@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -45,11 +46,11 @@ export const OrderDetailsModal = ({ open, onOpenChange, order, onOrderUpdated }:
 
   const initializeAdjustmentForm = () => {
     setAdjustmentItems(order.items.map(item => ({
-      product_id: item.productId,
+      productId: item.productId,
       productName: item.productName,
       originalQuantity: item.quantity,
       returnQuantity: 0,
-      unit_price: item.unitPrice,
+      unitPrice: item.unitPrice,
       reason: ""
     })));
     setShowAdjustmentForm(true);
@@ -82,20 +83,20 @@ export const OrderDetailsModal = ({ open, onOpenChange, order, onOrderUpdated }:
         return;
       }
 
-      // Updated API call structure to match your database schema
+      // Calculate refund amount
+      const refundAmount = itemsToReturn.reduce((sum, item) => sum + (item.returnQuantity * item.unitPrice), 0);
+
+      // Updated API call structure to match your backend
       const adjustmentData = {
-        sale_id: order.id,
-        adjustment_type: "return",
+        type: "return",
         items: itemsToReturn.map(item => ({
-          product_id: item.product_id,
+          productId: item.productId,
           quantity: item.returnQuantity,
-          unit_price: item.unit_price,
-          reason: item.reason || "Return after completion"
+          reason: item.reason || "customer_request"
         })),
-        notes: adjustmentNotes || "Order adjustment - items returned after completion",
-        restock_inventory: true,
-        adjustment_date: new Date().toISOString().split('T')[0],
-        created_by: 1 // You might want to get this from user context
+        adjustmentReason: adjustmentNotes || "Order adjustment - items returned after completion",
+        refundAmount: refundAmount,
+        restockItems: true
       };
 
       console.log('Sending adjustment data:', adjustmentData);
@@ -431,7 +432,7 @@ export const OrderDetailsModal = ({ open, onOpenChange, order, onOrderUpdated }:
                         </div>
                         <div className="text-right">
                           <p className="text-sm text-gray-600">Unit Price</p>
-                          <p className="font-medium">PKR {item.unit_price.toFixed(2)}</p>
+                          <p className="font-medium">PKR {item.unitPrice.toFixed(2)}</p>
                         </div>
                       </div>
                       
@@ -477,20 +478,24 @@ export const OrderDetailsModal = ({ open, onOpenChange, order, onOrderUpdated }:
                           <Label htmlFor={`reason-${index}`} className="text-sm font-medium text-gray-700">
                             Return Reason
                           </Label>
-                          <Input
+                          <select
                             id={`reason-${index}`}
                             value={item.reason}
                             onChange={(e) => updateReturnReason(index, e.target.value)}
-                            placeholder="e.g., Damaged, Wrong item"
-                            className="mt-1"
-                          />
+                            className="mt-1 w-full p-2 border border-gray-300 rounded-md text-sm"
+                          >
+                            <option value="">Select reason</option>
+                            <option value="damaged">Damaged</option>
+                            <option value="wrong_item">Wrong Item</option>
+                            <option value="customer_request">Customer Request</option>
+                          </select>
                         </div>
                       </div>
                       
                       {item.returnQuantity > 0 && (
                         <div className="mt-3 p-2 bg-green-50 border border-green-200 rounded">
                           <p className="text-sm text-green-700">
-                            <strong>Refund Amount:</strong> PKR {(item.returnQuantity * item.unit_price).toFixed(2)}
+                            <strong>Refund Amount:</strong> PKR {(item.returnQuantity * item.unitPrice).toFixed(2)}
                           </p>
                         </div>
                       )}
@@ -524,7 +529,7 @@ export const OrderDetailsModal = ({ open, onOpenChange, order, onOrderUpdated }:
                         .map((item, index) => (
                           <div key={index} className="flex justify-between text-blue-700">
                             <span>{item.productName} x {item.returnQuantity}</span>
-                            <span>PKR {(item.returnQuantity * item.unit_price).toFixed(2)}</span>
+                            <span>PKR {(item.returnQuantity * item.unitPrice).toFixed(2)}</span>
                           </div>
                         ))}
                       <Separator className="my-2" />
@@ -532,7 +537,7 @@ export const OrderDetailsModal = ({ open, onOpenChange, order, onOrderUpdated }:
                         <span>Total Refund:</span>
                         <span>
                           PKR {adjustmentItems
-                            .reduce((sum, item) => sum + (item.returnQuantity * item.unit_price), 0)
+                            .reduce((sum, item) => sum + (item.returnQuantity * item.unitPrice), 0)
                             .toFixed(2)}
                         </span>
                       </div>
