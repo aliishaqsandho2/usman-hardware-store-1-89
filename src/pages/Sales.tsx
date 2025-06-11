@@ -344,20 +344,18 @@ const Sales = () => {
 
   if (loading) {
     return (
-      <div className="flex-1 p-4 md:p-6 space-y-6 min-h-screen bg-background">
-        <div className="flex items-center justify-center h-64">
-          <div className="text-lg text-muted-foreground">Loading POS...</div>
-        </div>
+      <div className="flex h-screen items-center justify-center bg-background">
+        <div className="text-lg text-muted-foreground">Loading POS...</div>
       </div>
     );
   }
 
   return (
-    <div className="flex h-screen bg-gray-50 dark:bg-gray-900 relative">
+    <div className="flex h-screen bg-gray-50 dark:bg-gray-900 overflow-hidden">
       {/* Main POS Area */}
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className="flex-1 flex flex-col min-w-0 h-full">
         {/* Header */}
-        <div className="bg-background shadow-sm border-b px-3 md:px-4 py-3">
+        <div className="bg-background shadow-sm border-b px-3 md:px-4 py-3 flex-shrink-0">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2 md:gap-3 min-w-0 flex-1">
               <SidebarTrigger />
@@ -405,9 +403,9 @@ const Sales = () => {
           </div>
         </div>
 
-        {/* Products Section */}
-        <div className="flex-1 p-3 md:p-4 overflow-auto bg-background">
-          <div className="mb-4">
+        {/* Products Section - Fixed height with internal scrolling */}
+        <div className="flex-1 p-3 md:p-4 bg-background overflow-hidden flex flex-col">
+          <div className="mb-4 flex-shrink-0">
             <div className="flex items-center justify-between mb-3">
               <h2 className="text-base md:text-lg font-semibold text-foreground flex items-center gap-2">
                 <Package className="h-4 w-4 text-blue-600" />
@@ -474,26 +472,28 @@ const Sales = () => {
             </div>
           </div>
 
-          {/* Responsive Products Grid - More cards per row with smaller size */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7 gap-2">
-            {sortedProducts.map((product) => (
-              <ProductCard
-                key={product.id}
-                product={product}
-                isPinned={pinnedProducts.includes(product.id)}
-                quantityInput={quantityInputs[product.id] || ""}
-                onTogglePin={togglePinProduct}
-                onQuantityChange={handleQuantityInputChange}
-                onAddToCart={addToCartWithCustomQuantity}
-                onAddCustomQuantity={addCustomQuantityToCart}
-              />
-            ))}
+          {/* Responsive Products Grid - Scrollable */}
+          <div className="flex-1 overflow-y-auto">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7 gap-2">
+              {sortedProducts.map((product) => (
+                <ProductCard
+                  key={product.id}
+                  product={product}
+                  isPinned={pinnedProducts.includes(product.id)}
+                  quantityInput={quantityInputs[product.id] || ""}
+                  onTogglePin={togglePinProduct}
+                  onQuantityChange={handleQuantityInputChange}
+                  onAddToCart={addToCartWithCustomQuantity}
+                  onAddCustomQuantity={addCustomQuantityToCart}
+                />
+              ))}
+            </div>
           </div>
         </div>
       </div>
 
       {/* Desktop Cart Sidebar */}
-      <div className={`${isMobile ? 'hidden' : ''}`}>
+      <div className={`${isMobile ? 'hidden' : ''} flex-shrink-0`}>
         <CartSidebar
           cart={cart}
           selectedCustomer={selectedCustomer}

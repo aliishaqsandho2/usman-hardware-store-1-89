@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -10,6 +9,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Search, Eye, FileText, CreditCard, Receipt, DollarSign, Download, Printer } from "lucide-react";
 import { salesApi } from "@/services/api";
 import { useToast } from "@/hooks/use-toast";
+import QRCode from 'qrcode';
+import jsPDF from 'jspdf';
 
 interface SalesReceipt {
   id: number;
@@ -98,31 +99,162 @@ const SalesReceipts = () => {
     window.print();
   };
 
-  const handleDownloadReceipt = () => {
-    if (selectedReceipt) {
-      const element = document.getElementById('receipt-content');
-      if (element) {
-        const printWindow = window.open('', '_blank');
-        if (printWindow) {
-          printWindow.document.write(`
-            <html>
-              <head>
-                <title>Receipt - ${selectedReceipt.orderNumber}</title>
-                <style>
-                  body { font-family: Arial, sans-serif; margin: 20px; }
-                  .receipt { max-width: 400px; margin: 0 auto; }
-                  @media print { body { margin: 0; } }
-                </style>
-              </head>
-              <body>
-                ${element.innerHTML}
-              </body>
-            </html>
-          `);
-          printWindow.document.close();
-          printWindow.print();
+  // IMPROVED: Download receipt with better formatting and real QR code
+  const handleDownloadReceipt = async () => {
+    if (!selectedReceipt) return;
+
+    try {
+      // Generate QR code for the receipt
+      const qrData = `USMAN-HARDWARE-${selectedReceipt.orderNumber}-${selectedReceipt.total}`;
+      const qrCodeDataURL = await QRCode.toDataURL(qrData, {
+        width: 100,
+        margin: 1,
+        color: {
+          dark: '#000000',
+          light: '#FFFFFF'
         }
+      });
+
+      // Create improved PDF receipt
+      const pdf = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: [80, 200] // Thermal receipt size (80mm width)
+      });
+
+      const pageWidth = 80;
+      let yPos = 10;
+
+      // Company Header
+      pdf.setFontSize(14);
+      pdf.setFont('helvetica', 'bold');
+      pdf.text('USMAN HARDWARE', pageWidth / 2, yPos, { align: 'center' });
+      yPos += 6;
+      
+      pdf.setFontSize(8);
+      pdf.setFont('helvetica', 'normal');
+      pdf.text('Furniture Hardware Specialist', pageWidth / 2, yPos, { align: 'center' });
+      yPos += 4;
+      pdf.text('Hafizabad, Punjab, Pakistan', pageWidth / 2, yPos, { align: 'center' });
+      yPos += 4;
+      pdf.text('Phone: +92-300-1234567', pageWidth / 2, yPos, { align: 'center' });
+      yPos += 8;
+
+      // Separator line
+      pdf.line(5, yPos, pageWidth - 5, yPos);
+      yPos += 5;
+
+      // Receipt Title
+      pdf.setFontSize(12);
+      pdf.setFont('helvetica', 'bold');
+      pdf.text('SALES RECEIPT', pageWidth / 2, yPos, { align: 'center' });
+      yPos += 8;
+
+      // Order Information
+      pdf.setFontSize(8);
+      pdf.setFont('helvetica', 'normal');
+      pdf.text(`Receipt No: ${selectedReceipt.orderNumber}`, 5, yPos);
+      yPos += 4;
+      pdf.text(`Date: ${new Date(selectedReceipt.date).toLocaleDateString()}`, 5, yPos);
+      yPos += 4;
+      pdf.text(`Time: ${selectedReceipt.time}`, 5, yPos);
+      yPos += 4;
+      pdf.text(`Customer: ${selectedReceipt.customerName}`, 5, yPos);
+      yPos += 4;
+      pdf.text(`Cashier: ${selectedReceipt.createdBy}`, 5, yPos);
+      yPos += 4;
+      pdf.text(`Payment: ${selectedReceipt.paymentMethod.toUpperCase()}`, 5, yPos);
+      yPos += 6;
+
+      // Items header
+      pdf.line(5, yPos, pageWidth - 5, yPos);
+      yPos += 3;
+      
+      pdf.setFont('helvetica', 'bold');
+      pdf.text('Item', 5, yPos);
+      pdf.text('Qty', 45, yPos);
+      pdf.text('Rate', 55, yPos);
+      pdf.text('Amount', 65, yPos);
+      yPos += 3;
+      
+      pdf.line(5, yPos, pageWidth - 5, yPos);
+      yPos += 4;
+
+      // Items
+      pdf.setFont('helvetica', 'normal');
+      selectedReceipt.items.forEach((item) => {
+        // Product name (truncate if too long)
+        const productName = item.productName.length > 20 
+          ? item.productName.substring(0, 20) + '...' 
+          : item.productName;
+        
+        pdf.text(productName, 5, yPos);
+        pdf.text(item.quantity.toString(), 45, yPos);
+        pdf.text(item.unitPrice.toFixed(0), 55, yPos);
+        pdf.text(item.total.toFixed(0), 65, yPos);
+        yPos += 4;
+      });
+
+      yPos += 2;
+      pdf.line(5, yPos, pageWidth - 5, yPos);
+      yPos += 4;
+
+      // Totals
+      pdf.setFont('helvetica', 'normal');
+      pdf.text(`Subtotal:`, 45, yPos);
+      pdf.text(`PKR ${selectedReceipt.subtotal.toFixed(0)}`, 60, yPos);
+      yPos += 4;
+      
+      if (selectedReceipt.discount > 0) {
+        pdf.text(`Discount:`, 45, yPos);
+        pdf.text(`PKR ${selectedReceipt.discount.toFixed(0)}`, 60, yPos);
+        yPos += 4;
       }
+      
+      if (selectedReceipt.tax > 0) {
+        pdf.text(`Tax:`, 45, yPos);
+        pdf.text(`PKR ${selectedReceipt.tax.toFixed(0)}`, 60, yPos);
+        yPos += 4;
+      }
+      
+      // Total
+      pdf.setFont('helvetica', 'bold');
+      pdf.setFontSize(10);
+      pdf.text(`TOTAL:`, 45, yPos);
+      pdf.text(`PKR ${selectedReceipt.total.toFixed(0)}`, 60, yPos);
+      yPos += 8;
+
+      // QR Code
+      pdf.addImage(qrCodeDataURL, 'PNG', pageWidth / 2 - 15, yPos, 30, 30);
+      yPos += 35;
+
+      // Footer
+      pdf.setFontSize(7);
+      pdf.setFont('helvetica', 'normal');
+      pdf.text('Thank you for your business!', pageWidth / 2, yPos, { align: 'center' });
+      yPos += 3;
+      pdf.text('For queries: +92-300-1234567', pageWidth / 2, yPos, { align: 'center' });
+      yPos += 3;
+      pdf.text('www.usmanhardware.com', pageWidth / 2, yPos, { align: 'center' });
+      yPos += 5;
+      
+      pdf.setFontSize(6);
+      pdf.text(`Generated: ${new Date().toLocaleString()}`, pageWidth / 2, yPos, { align: 'center' });
+
+      // Save PDF
+      pdf.save(`receipt_${selectedReceipt.orderNumber}.pdf`);
+      
+      toast({
+        title: "Receipt Downloaded",
+        description: `Professional receipt for order ${selectedReceipt.orderNumber} downloaded successfully`,
+      });
+    } catch (error) {
+      console.error('Failed to generate receipt PDF:', error);
+      toast({
+        title: "Download Failed",
+        description: "Failed to generate receipt PDF. Please try again.",
+        variant: "destructive"
+      });
     }
   };
 

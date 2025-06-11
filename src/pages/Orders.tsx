@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -13,6 +12,7 @@ import { useToast } from "@/hooks/use-toast";
 import { salesApi } from "@/services/api";
 import { OrderDetailsModal } from "@/components/orders/OrderDetailsModal";
 import jsPDF from 'jspdf';
+import QRCode from 'qrcode';
 
 interface Sale {
   id: number;
@@ -114,7 +114,7 @@ const Orders = () => {
     setIsOrderDetailsOpen(true);
   };
 
-  // NEW: Handle individual order PDF download
+  // IMPROVED: Handle individual order PDF download with better formatting and real QR code
   const handleOrderPDF = async (order: Sale) => {
     try {
       // Try backend PDF generation first
@@ -139,98 +139,149 @@ const Orders = () => {
         console.log('Backend PDF generation not available, using frontend generation');
       }
 
-      // Fallback to frontend PDF generation
-      const pdf = new jsPDF();
-      const pageWidth = pdf.internal.pageSize.width;
-      let yPos = 20;
-
-      // Header
-      pdf.setFontSize(20);
-      pdf.setFont('helvetica', 'bold');
-      pdf.text('USMAN HARDWARE', pageWidth / 2, yPos, { align: 'center' });
-      yPos += 10;
-      
-      pdf.setFontSize(12);
-      pdf.setFont('helvetica', 'normal');
-      pdf.text('Hafizabad', pageWidth / 2, yPos, { align: 'center' });
-      yPos += 20;
-
-      // Order Info
-      pdf.setFontSize(16);
-      pdf.setFont('helvetica', 'bold');
-      pdf.text('SALES RECEIPT', pageWidth / 2, yPos, { align: 'center' });
-      yPos += 15;
-
-      pdf.setFontSize(10);
-      pdf.setFont('helvetica', 'normal');
-      pdf.text(`Order Number: ${order.orderNumber}`, 20, yPos);
-      pdf.text(`Date: ${new Date(order.date).toLocaleDateString()}`, pageWidth - 80, yPos);
-      yPos += 8;
-      
-      pdf.text(`Customer: ${order.customerName || 'Walk-in Customer'}`, 20, yPos);
-      pdf.text(`Time: ${order.time}`, pageWidth - 80, yPos);
-      yPos += 8;
-      
-      pdf.text(`Payment Method: ${order.paymentMethod.toUpperCase()}`, 20, yPos);
-      pdf.text(`Status: ${order.status.toUpperCase()}`, pageWidth - 80, yPos);
-      yPos += 15;
-
-      // Items Table
-      pdf.setFont('helvetica', 'bold');
-      pdf.text('Item', 20, yPos);
-      pdf.text('Qty', 80, yPos);
-      pdf.text('Rate', 110, yPos);
-      pdf.text('Amount', 150, yPos);
-      yPos += 5;
-      
-      pdf.line(20, yPos, pageWidth - 20, yPos);
-      yPos += 8;
-
-      pdf.setFont('helvetica', 'normal');
-      order.items.forEach((item: any) => {
-        pdf.text(item.productName.substring(0, 25), 20, yPos);
-        pdf.text(item.quantity.toString(), 80, yPos);
-        pdf.text(`PKR ${item.unitPrice.toFixed(2)}`, 110, yPos);
-        pdf.text(`PKR ${item.total.toFixed(2)}`, 150, yPos);
-        yPos += 6;
+      // Generate QR code for the order
+      const qrData = `USMAN-HARDWARE-${order.orderNumber}-${order.total}`;
+      const qrCodeDataURL = await QRCode.toDataURL(qrData, {
+        width: 100,
+        margin: 1,
+        color: {
+          dark: '#000000',
+          light: '#FFFFFF'
+        }
       });
 
-      yPos += 5;
-      pdf.line(20, yPos, pageWidth - 20, yPos);
-      yPos += 10;
+      // Improved frontend PDF generation with better layout
+      const pdf = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: [80, 200] // Thermal receipt size (80mm width)
+      });
 
-      // Totals
+      const pageWidth = 80;
+      let yPos = 10;
+
+      // Company Header
+      pdf.setFontSize(14);
       pdf.setFont('helvetica', 'bold');
-      pdf.text(`Subtotal: PKR ${order.subtotal.toFixed(2)}`, 110, yPos);
+      pdf.text('USMAN HARDWARE', pageWidth / 2, yPos, { align: 'center' });
       yPos += 6;
       
+      pdf.setFontSize(8);
+      pdf.setFont('helvetica', 'normal');
+      pdf.text('Furniture Hardware Specialist', pageWidth / 2, yPos, { align: 'center' });
+      yPos += 4;
+      pdf.text('Hafizabad, Punjab, Pakistan', pageWidth / 2, yPos, { align: 'center' });
+      yPos += 4;
+      pdf.text('Phone: +92-300-1234567', pageWidth / 2, yPos, { align: 'center' });
+      yPos += 8;
+
+      // Separator line
+      pdf.line(5, yPos, pageWidth - 5, yPos);
+      yPos += 5;
+
+      // Receipt Title
+      pdf.setFontSize(12);
+      pdf.setFont('helvetica', 'bold');
+      pdf.text('SALES RECEIPT', pageWidth / 2, yPos, { align: 'center' });
+      yPos += 8;
+
+      // Order Information
+      pdf.setFontSize(8);
+      pdf.setFont('helvetica', 'normal');
+      pdf.text(`Receipt No: ${order.orderNumber}`, 5, yPos);
+      yPos += 4;
+      pdf.text(`Date: ${new Date(order.date).toLocaleDateString()}`, 5, yPos);
+      yPos += 4;
+      pdf.text(`Time: ${order.time}`, 5, yPos);
+      yPos += 4;
+      pdf.text(`Customer: ${order.customerName || 'Walk-in Customer'}`, 5, yPos);
+      yPos += 4;
+      pdf.text(`Cashier: ${order.createdBy}`, 5, yPos);
+      yPos += 4;
+      pdf.text(`Payment: ${order.paymentMethod.toUpperCase()}`, 5, yPos);
+      yPos += 6;
+
+      // Items header
+      pdf.line(5, yPos, pageWidth - 5, yPos);
+      yPos += 3;
+      
+      pdf.setFont('helvetica', 'bold');
+      pdf.text('Item', 5, yPos);
+      pdf.text('Qty', 45, yPos);
+      pdf.text('Rate', 55, yPos);
+      pdf.text('Amount', 65, yPos);
+      yPos += 3;
+      
+      pdf.line(5, yPos, pageWidth - 5, yPos);
+      yPos += 4;
+
+      // Items
+      pdf.setFont('helvetica', 'normal');
+      order.items.forEach((item: any) => {
+        // Product name (truncate if too long)
+        const productName = item.productName.length > 20 
+          ? item.productName.substring(0, 20) + '...' 
+          : item.productName;
+        
+        pdf.text(productName, 5, yPos);
+        pdf.text(item.quantity.toString(), 45, yPos);
+        pdf.text(item.unitPrice.toFixed(0), 55, yPos);
+        pdf.text(item.total.toFixed(0), 65, yPos);
+        yPos += 4;
+      });
+
+      yPos += 2;
+      pdf.line(5, yPos, pageWidth - 5, yPos);
+      yPos += 4;
+
+      // Totals
+      pdf.setFont('helvetica', 'normal');
+      pdf.text(`Subtotal:`, 45, yPos);
+      pdf.text(`PKR ${order.subtotal.toFixed(0)}`, 60, yPos);
+      yPos += 4;
+      
       if (order.discount > 0) {
-        pdf.text(`Discount: PKR ${order.discount.toFixed(2)}`, 110, yPos);
-        yPos += 6;
+        pdf.text(`Discount:`, 45, yPos);
+        pdf.text(`PKR ${order.discount.toFixed(0)}`, 60, yPos);
+        yPos += 4;
       }
       
       if (order.tax > 0) {
-        pdf.text(`Tax: PKR ${order.tax.toFixed(2)}`, 110, yPos);
-        yPos += 6;
+        pdf.text(`Tax:`, 45, yPos);
+        pdf.text(`PKR ${order.tax.toFixed(0)}`, 60, yPos);
+        yPos += 4;
       }
       
-      pdf.setFontSize(12);
-      pdf.text(`TOTAL: PKR ${order.total.toFixed(2)}`, 110, yPos);
-      yPos += 20;
+      // Total
+      pdf.setFont('helvetica', 'bold');
+      pdf.setFontSize(10);
+      pdf.text(`TOTAL:`, 45, yPos);
+      pdf.text(`PKR ${order.total.toFixed(0)}`, 60, yPos);
+      yPos += 8;
+
+      // QR Code
+      pdf.addImage(qrCodeDataURL, 'PNG', pageWidth / 2 - 15, yPos, 30, 30);
+      yPos += 35;
 
       // Footer
-      pdf.setFontSize(8);
+      pdf.setFontSize(7);
       pdf.setFont('helvetica', 'normal');
       pdf.text('Thank you for your business!', pageWidth / 2, yPos, { align: 'center' });
+      yPos += 3;
+      pdf.text('For queries: +92-300-1234567', pageWidth / 2, yPos, { align: 'center' });
+      yPos += 3;
+      pdf.text('www.usmanhardware.com', pageWidth / 2, yPos, { align: 'center' });
       yPos += 5;
-      pdf.text(`Generated on ${new Date().toLocaleString()}`, pageWidth / 2, yPos, { align: 'center' });
+      
+      pdf.setFontSize(6);
+      pdf.text(`Generated: ${new Date().toLocaleString()}`, pageWidth / 2, yPos, { align: 'center' });
 
       // Save PDF
-      pdf.save(`order_${order.orderNumber}_receipt.pdf`);
+      pdf.save(`receipt_${order.orderNumber}.pdf`);
       
       toast({
-        title: "PDF Downloaded",
-        description: `Receipt for order ${order.orderNumber} downloaded successfully`,
+        title: "Receipt Downloaded",
+        description: `Professional receipt for order ${order.orderNumber} downloaded successfully`,
       });
     } catch (error) {
       console.error('Failed to generate PDF:', error);
