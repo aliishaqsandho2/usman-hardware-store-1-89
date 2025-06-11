@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -8,10 +7,11 @@ import { Separator } from "@/components/ui/separator";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { User, Package, Calendar, DollarSign, FileText, RotateCcw, AlertTriangle, Minus, Plus, ArrowLeft } from "lucide-react";
+import { User, Package, Calendar, DollarSign, FileText, RotateCcw, AlertTriangle, Minus, Plus, ArrowLeft, Edit2, Save, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { salesApi } from "@/services/api";
+import { salesApi, customersApi } from "@/services/api";
 import jsPDF from 'jspdf';
 
 interface OrderDetailsModalProps {
@@ -28,8 +28,118 @@ export const OrderDetailsModal = ({ open, onOpenChange, order, onOrderUpdated }:
   const [adjustmentNotes, setAdjustmentNotes] = useState("");
   const [adjustmentLoading, setAdjustmentLoading] = useState(false);
   const [pdfLoading, setPdfLoading] = useState(false);
+  
+  // NEW: Edit mode states
+  const [editMode, setEditMode] = useState<'status' | 'payment' | 'customer' | null>(null);
+  const [editValues, setEditValues] = useState({
+    status: order?.status || '',
+    paymentMethod: order?.paymentMethod || '',
+    customerId: order?.customerId || null,
+    customerName: order?.customerName || ''
+  });
+  const [customers, setCustomers] = useState<any[]>([]);
+  const [customerSearch, setCustomerSearch] = useState('');
+  const [editLoading, setEditLoading] = useState(false);
 
   if (!order) return null;
+
+  // Fetch customers when customer edit mode is activated
+  const fetchCustomers = async () => {
+    try {
+      const response = await customersApi.getAll({ limit: 100 });
+      if (response.success) {
+        setCustomers(response.data.customers || response.data);
+      }
+    } catch (error) {
+      console.error('Failed to fetch customers:', error);
+    }
+  };
+
+  const handleEditStart = (field: 'status' | 'payment' | 'customer') => {
+    setEditMode(field);
+    setEditValues({
+      status: order.status,
+      paymentMethod: order.paymentMethod,
+      customerId: order.customerId,
+      customerName: order.customerName
+    });
+    
+    if (field === 'customer') {
+      fetchCustomers();
+    }
+  };
+
+  const handleEditCancel = () => {
+    setEditMode(null);
+    setEditValues({
+      status: order.status,
+      paymentMethod: order.paymentMethod,
+      customerId: order.customerId,
+      customerName: order.customerName
+    });
+    setCustomerSearch('');
+  };
+
+  const handleEditSave = async () => {
+    try {
+      setEditLoading(true);
+      
+      if (editMode === 'status') {
+        const response = await salesApi.updateStatus(order.id, { status: editValues.status });
+        if (response.success) {
+          toast({
+            title: "Status Updated",
+            description: "Order status has been updated successfully",
+          });
+        }
+      } else if (editMode === 'payment' || editMode === 'customer') {
+        // This will use the new API endpoint you'll create
+        const updateData: any = {};
+        
+        if (editMode === 'payment') {
+          updateData.paymentMethod = editValues.paymentMethod;
+        } else if (editMode === 'customer') {
+          updateData.customerId = editValues.customerId;
+        }
+        
+        // For now, we'll use a generic approach - you'll need to implement this API
+        const response = await fetch(`https://zaidawn.site/wp-json/ims/v1/sales/${order.id}/details`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(updateData)
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+          toast({
+            title: "Order Updated",
+            description: `${editMode === 'payment' ? 'Payment method' : 'Customer'} has been updated successfully`,
+          });
+        } else {
+          throw new Error(result.message || 'Update failed');
+        }
+      }
+      
+      setEditMode(null);
+      onOrderUpdated?.();
+      
+    } catch (error) {
+      console.error('Failed to update order:', error);
+      toast({
+        title: "Update Failed",
+        description: `Failed to update ${editMode}. Please try again.`,
+        variant: "destructive"
+      });
+    } finally {
+      setEditLoading(false);
+    }
+  };
+
+  const filteredCustomers = customers.filter(customer =>
+    customer.name?.toLowerCase().includes(customerSearch.toLowerCase()) ||
+    customer.phone?.toLowerCase().includes(customerSearch.toLowerCase())
+  );
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -83,10 +193,8 @@ export const OrderDetailsModal = ({ open, onOpenChange, order, onOrderUpdated }:
         return;
       }
 
-      // Calculate refund amount
       const refundAmount = itemsToReturn.reduce((sum, item) => sum + (item.returnQuantity * item.unitPrice), 0);
 
-      // Updated API call structure to match your backend
       const adjustmentData = {
         type: "return",
         items: itemsToReturn.map(item => ({
@@ -132,10 +240,8 @@ export const OrderDetailsModal = ({ open, onOpenChange, order, onOrderUpdated }:
     try {
       setPdfLoading(true);
       
-      // Try backend PDF generation first
       try {
         const response = await salesApi.generatePDF(order.id);
-        // If backend supports PDF generation, handle the blob response
         const blob = new Blob([response], { type: 'application/pdf' });
         const url = window.URL.createObjectURL(blob);
         const link = document.createElement('a');
@@ -155,12 +261,10 @@ export const OrderDetailsModal = ({ open, onOpenChange, order, onOrderUpdated }:
         console.log('Backend PDF generation not available, using frontend generation');
       }
 
-      // Fallback to frontend PDF generation
       const pdf = new jsPDF();
       const pageWidth = pdf.internal.pageSize.width;
       let yPos = 20;
 
-      // Header
       pdf.setFontSize(20);
       pdf.setFont('helvetica', 'bold');
       pdf.text('USMAN HARDWARE', pageWidth / 2, yPos, { align: 'center' });
@@ -171,7 +275,6 @@ export const OrderDetailsModal = ({ open, onOpenChange, order, onOrderUpdated }:
       pdf.text('Hafizabad', pageWidth / 2, yPos, { align: 'center' });
       yPos += 20;
 
-      // Order Info
       pdf.setFontSize(16);
       pdf.setFont('helvetica', 'bold');
       pdf.text('SALES RECEIPT', pageWidth / 2, yPos, { align: 'center' });
@@ -191,7 +294,6 @@ export const OrderDetailsModal = ({ open, onOpenChange, order, onOrderUpdated }:
       pdf.text(`Status: ${order.status.toUpperCase()}`, pageWidth - 80, yPos);
       yPos += 15;
 
-      // Items Table
       pdf.setFont('helvetica', 'bold');
       pdf.text('Item', 20, yPos);
       pdf.text('Qty', 80, yPos);
@@ -215,7 +317,6 @@ export const OrderDetailsModal = ({ open, onOpenChange, order, onOrderUpdated }:
       pdf.line(20, yPos, pageWidth - 20, yPos);
       yPos += 10;
 
-      // Totals
       pdf.setFont('helvetica', 'bold');
       pdf.text(`Subtotal: PKR ${order.subtotal.toFixed(2)}`, 110, yPos);
       yPos += 6;
@@ -234,14 +335,12 @@ export const OrderDetailsModal = ({ open, onOpenChange, order, onOrderUpdated }:
       pdf.text(`TOTAL: PKR ${order.total.toFixed(2)}`, 110, yPos);
       yPos += 20;
 
-      // Footer
       pdf.setFontSize(8);
       pdf.setFont('helvetica', 'normal');
       pdf.text('Thank you for your business!', pageWidth / 2, yPos, { align: 'center' });
       yPos += 5;
       pdf.text(`Generated on ${new Date().toLocaleString()}`, pageWidth / 2, yPos, { align: 'center' });
 
-      // Save PDF
       pdf.save(`order_${order.orderNumber}_receipt.pdf`);
       
       toast({
@@ -279,11 +378,69 @@ export const OrderDetailsModal = ({ open, onOpenChange, order, onOrderUpdated }:
                   <CardTitle className="text-sm flex items-center gap-2">
                     <User className="h-4 w-4" />
                     Customer Information
+                    {editMode !== 'customer' && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleEditStart('customer')}
+                        className="h-6 w-6 p-0 ml-auto"
+                      >
+                        <Edit2 className="h-3 w-3" />
+                      </Button>
+                    )}
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-2">
-                  <p><strong>Name:</strong> {order.customerName || 'Walk-in Customer'}</p>
-                  <p><strong>Customer ID:</strong> {order.customerId || 'N/A'}</p>
+                  {editMode === 'customer' ? (
+                    <div className="space-y-3">
+                      <div>
+                        <Label className="text-sm">Search Customer</Label>
+                        <Input
+                          placeholder="Search by name or phone..."
+                          value={customerSearch}
+                          onChange={(e) => setCustomerSearch(e.target.value)}
+                          className="mt-1"
+                        />
+                      </div>
+                      <div className="max-h-32 overflow-y-auto space-y-1">
+                        <div
+                          className="p-2 border rounded cursor-pointer hover:bg-gray-50"
+                          onClick={() => {
+                            setEditValues(prev => ({ ...prev, customerId: null, customerName: 'Walk-in Customer' }));
+                          }}
+                        >
+                          <p className="font-medium">Walk-in Customer</p>
+                        </div>
+                        {filteredCustomers.map((customer) => (
+                          <div
+                            key={customer.id}
+                            className="p-2 border rounded cursor-pointer hover:bg-gray-50"
+                            onClick={() => {
+                              setEditValues(prev => ({ ...prev, customerId: customer.id, customerName: customer.name }));
+                            }}
+                          >
+                            <p className="font-medium">{customer.name}</p>
+                            <p className="text-sm text-gray-600">{customer.phone}</p>
+                          </div>
+                        ))}
+                      </div>
+                      <div className="flex gap-2">
+                        <Button size="sm" onClick={handleEditSave} disabled={editLoading}>
+                          <Save className="h-3 w-3 mr-1" />
+                          Save
+                        </Button>
+                        <Button size="sm" variant="outline" onClick={handleEditCancel}>
+                          <X className="h-3 w-3 mr-1" />
+                          Cancel
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      <p><strong>Name:</strong> {editValues.customerName || 'Walk-in Customer'}</p>
+                      <p><strong>Customer ID:</strong> {editValues.customerId || 'N/A'}</p>
+                    </>
+                  )}
                 </CardContent>
               </Card>
 
@@ -297,8 +454,81 @@ export const OrderDetailsModal = ({ open, onOpenChange, order, onOrderUpdated }:
                 <CardContent className="space-y-2">
                   <p><strong>Date:</strong> {new Date(order.date).toLocaleDateString()}</p>
                   <p><strong>Time:</strong> {order.time}</p>
-                  <p><strong>Status:</strong> {getStatusBadge(order.status)}</p>
-                  <p><strong>Payment:</strong> {order.paymentMethod}</p>
+                  
+                  {/* Status with edit capability */}
+                  <div className="flex items-center gap-2">
+                    <strong>Status:</strong>
+                    {editMode === 'status' ? (
+                      <div className="flex items-center gap-2">
+                        <Select value={editValues.status} onValueChange={(value) => setEditValues(prev => ({ ...prev, status: value }))}>
+                          <SelectTrigger className="w-32">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="pending">Pending</SelectItem>
+                            <SelectItem value="completed">Completed</SelectItem>
+                            <SelectItem value="cancelled">Cancelled</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <Button size="sm" onClick={handleEditSave} disabled={editLoading}>
+                          <Save className="h-3 w-3" />
+                        </Button>
+                        <Button size="sm" variant="outline" onClick={handleEditCancel}>
+                          <X className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2">
+                        {getStatusBadge(editValues.status)}
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleEditStart('status')}
+                          className="h-6 w-6 p-0"
+                        >
+                          <Edit2 className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Payment Method with edit capability */}
+                  <div className="flex items-center gap-2">
+                    <strong>Payment:</strong>
+                    {editMode === 'payment' ? (
+                      <div className="flex items-center gap-2">
+                        <Select value={editValues.paymentMethod} onValueChange={(value) => setEditValues(prev => ({ ...prev, paymentMethod: value }))}>
+                          <SelectTrigger className="w-32">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="cash">Cash</SelectItem>
+                            <SelectItem value="credit">Credit</SelectItem>
+                            <SelectItem value="card">Card</SelectItem>
+                            <SelectItem value="bank_transfer">Bank Transfer</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <Button size="sm" onClick={handleEditSave} disabled={editLoading}>
+                          <Save className="h-3 w-3" />
+                        </Button>
+                        <Button size="sm" variant="outline" onClick={handleEditCancel}>
+                          <X className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2">
+                        <span className="capitalize">{editValues.paymentMethod}</span>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleEditStart('payment')}
+                          className="h-6 w-6 p-0"
+                        >
+                          <Edit2 className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    )}
+                  </div>
                 </CardContent>
               </Card>
             </div>
