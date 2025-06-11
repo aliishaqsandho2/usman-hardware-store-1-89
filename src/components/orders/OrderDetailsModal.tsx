@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -41,8 +41,8 @@ export const OrderDetailsModal = ({ open, onOpenChange, order, onOrderUpdated }:
 
   if (!order) return null;
 
-  // Update editValues when order changes
-  useState(() => {
+  // FIXED: Use useEffect instead of useState for side effects
+  useEffect(() => {
     if (order) {
       setEditValues({
         status: order.status || '',
@@ -51,7 +51,7 @@ export const OrderDetailsModal = ({ open, onOpenChange, order, onOrderUpdated }:
         customerName: order.customerName || ''
       });
     }
-  });
+  }, [order]);
 
   // Fetch customers when customer edit mode is activated
   const fetchCustomers = async () => {
@@ -515,7 +515,7 @@ export const OrderDetailsModal = ({ open, onOpenChange, order, onOrderUpdated }:
               </CardContent>
             </Card>
 
-            {/* Action Buttons - Removed Download Receipt Button */}
+            {/* Action Buttons */}
             <div className="flex gap-2 justify-end">
               {order.status === 'completed' && (
                 <Button
