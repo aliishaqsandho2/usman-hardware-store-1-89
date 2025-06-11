@@ -28,7 +28,6 @@ export const OrderDetailsModal = ({ open, onOpenChange, order, onOrderUpdated }:
   const [adjustmentNotes, setAdjustmentNotes] = useState("");
   const [adjustmentLoading, setAdjustmentLoading] = useState(false);
   const [pdfLoading, setPdfLoading] = useState(false);
-  const [loading, setLoading] = useState(false);
   
   // Edit mode states
   const [editMode, setEditMode] = useState<'status' | 'payment' | 'customer' | null>(null);
@@ -37,13 +36,6 @@ export const OrderDetailsModal = ({ open, onOpenChange, order, onOrderUpdated }:
     paymentMethod: order?.paymentMethod || '',
     customerId: order?.customerId || null,
     customerName: order?.customerName || ''
-  });
-  const [editData, setEditData] = useState({
-    customerName: order?.customerName || '',
-    paymentMethod: order?.paymentMethod || '',
-    status: order?.status || '',
-    notes: order?.notes || '',
-    discount: order?.discount || ''
   });
   const [customers, setCustomers] = useState<any[]>([]);
   const [customerSearch, setCustomerSearch] = useState('');
@@ -240,7 +232,7 @@ export const OrderDetailsModal = ({ open, onOpenChange, order, onOrderUpdated }:
       } else {
         throw new Error(response.message || 'Failed to adjust order');
       }
-    } catch (error: any) {
+    } catch (error) {
       console.error('Failed to adjust order:', error);
       toast({
         title: "Adjustment Failed",
@@ -434,57 +426,6 @@ export const OrderDetailsModal = ({ open, onOpenChange, order, onOrderUpdated }:
       });
     } finally {
       setPdfLoading(false);
-    }
-  };
-
-  const handleUpdateOrder = async () => {
-    if (!order) return;
-
-    try {
-      setLoading(true);
-      
-      // Prepare the update data
-      const updateData = {
-        customerName: editData.customerName,
-        paymentMethod: editData.paymentMethod,
-        status: editData.status,
-        notes: editData.notes,
-        discount: parseFloat(editData.discount) || 0
-      };
-      
-      console.log('Sending update request for order ID:', order.id);
-      console.log('Update data:', updateData);
-
-      // Call the API
-      const response = await salesApi.update(order.id, updateData);
-      
-      console.log('API response:', response);
-
-      if (response.success) {
-        toast({
-          title: "Order Updated",
-          description: "Order has been updated successfully",
-        });
-        
-        // Call the callback to refresh the orders list
-        if (onOrderUpdated) {
-          onOrderUpdated();
-        }
-        
-        // Close the modal
-        onOpenChange(false);
-      } else {
-        throw new Error(response.message || 'Update failed');
-      }
-    } catch (error: any) {
-      console.error('Failed to update order:', error);
-      toast({
-        title: "Update Failed",
-        description: error.message || "Failed to update order. Please try again.",
-        variant: "destructive"
-      });
-    } finally {
-      setLoading(false);
     }
   };
 

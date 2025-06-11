@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -60,7 +61,7 @@ export function QuickCustomerForm({ open, onOpenChange, onCustomerCreated }: Qui
       } else {
         throw new Error(response.message || 'Failed to create customer');
       }
-    } catch (error: any) {
+    } catch (error) {
       console.error('Failed to create customer:', error);
       toast({
         title: "Error",
