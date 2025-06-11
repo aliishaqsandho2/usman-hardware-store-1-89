@@ -1,3 +1,4 @@
+
 import axios from "axios";
 
 // WordPress REST API Base URL
@@ -10,15 +11,10 @@ const instance = axios.create({
   },
 });
 
-// Keep the response interceptor but preserve the expected structure
+// Transform all responses to have consistent structure
 instance.interceptors.response.use(
   (response) => {
-    // If response.data already has the expected structure, return it
-    if (response.data && typeof response.data === 'object' && 'success' in response.data) {
-      return response.data;
-    }
-    
-    // Otherwise, wrap the response in the expected structure
+    // Always wrap response in expected structure
     return {
       success: true,
       data: response.data,
@@ -27,7 +23,13 @@ instance.interceptors.response.use(
   },
   (error) => {
     console.error("API Error:", error);
-    return Promise.reject(error);
+    
+    // Return error in expected format
+    return Promise.reject({
+      success: false,
+      data: null,
+      message: error.response?.data?.message || error.message || 'An error occurred'
+    });
   }
 );
 
