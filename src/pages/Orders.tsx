@@ -114,80 +114,46 @@ const Orders = () => {
     setIsOrderDetailsOpen(true);
   };
 
-  // ENHANCED: Thermal Receipt Generation - Narrow and Vertical
+  // BEAUTIFUL THERMAL RECEIPT - Professional formatting
   const handleOrderPDF = async (order: Sale) => {
     try {
-      // Generate scannable QR code with proper data
-      const qrData = JSON.stringify({
-        business: "USMAN HARDWARE",
-        order: order.orderNumber,
-        amount: order.total,
-        date: order.date,
-        verification: `UH-${order.id}-${order.total}`
-      });
-      
+      // Generate clean QR code
+      const qrData = `USMAN-HARDWARE-${order.orderNumber}-${order.total}`;
       const qrCodeDataURL = await QRCode.toDataURL(qrData, {
-        width: 100,
+        width: 80,
         margin: 1,
         color: {
           dark: '#000000',
-          light: '#ffffff'
+          light: '#FFFFFF'
         },
         errorCorrectionLevel: 'M'
       });
 
-      // Create thermal receipt format (80mm width, auto height)
+      // Create thermal receipt (80mm width)
       const pdf = new jsPDF({
         orientation: 'portrait',
         unit: 'mm',
-        format: [80, 300] // 80mm width, 300mm initial height (will adjust)
+        format: [80, 250]
       });
 
       const pageWidth = 80;
       let yPos = 5;
 
-      // WATERMARK - Subtle diagonal background
-      pdf.saveGraphicsState();
-      pdf.setGState(pdf.GState({ opacity: 0.05 }));
-      pdf.setTextColor(0, 0, 0);
-      pdf.setFontSize(20);
+      // ==================== HEADER ====================
+      pdf.setFontSize(16);
       pdf.setFont('helvetica', 'bold');
+      pdf.text('USMAN HARDWARE', pageWidth / 2, yPos, { align: 'center' });
+      yPos += 6;
       
-      // Add subtle watermark
-      const centerX = pageWidth / 2;
-      const centerY = 100;
-      const angle = -30 * (Math.PI / 180);
-      pdf.text('USMAN HARDWARE', centerX, centerY, {
-        angle: angle,
-        align: 'center'
-      });
-      
-      pdf.restoreGraphicsState();
-      pdf.setTextColor(0, 0, 0); // Reset to black
-
-      // HEADER SECTION
-      pdf.setFillColor(30, 58, 138); // Dark blue
-      pdf.rect(0, 0, pageWidth, 25, 'F');
-      
-      pdf.setTextColor(255, 255, 255);
-      pdf.setFontSize(14);
-      pdf.setFont('helvetica', 'bold');
-      pdf.text('USMAN HARDWARE', pageWidth / 2, 8, { align: 'center' });
+      pdf.setFontSize(9);
+      pdf.setFont('helvetica', 'normal');
+      pdf.text('Premium Furniture Hardware', pageWidth / 2, yPos, { align: 'center' });
+      yPos += 4;
       
       pdf.setFontSize(8);
-      pdf.setFont('helvetica', 'normal');
-      pdf.text('Premium Furniture Hardware', pageWidth / 2, 14, { align: 'center' });
-      pdf.text('Hafizabad, Punjab, Pakistan', pageWidth / 2, 18, { align: 'center' });
-      pdf.text('+92-300-1234567', pageWidth / 2, 22, { align: 'center' });
-
-      // Reset text color and position
-      pdf.setTextColor(0, 0, 0);
-      yPos = 35;
-
-      // RECEIPT TITLE
-      pdf.setFontSize(12);
-      pdf.setFont('helvetica', 'bold');
-      pdf.text('SALES RECEIPT', pageWidth / 2, yPos, { align: 'center' });
+      pdf.text('Hafizabad, Punjab, Pakistan', pageWidth / 2, yPos, { align: 'center' });
+      yPos += 3;
+      pdf.text('Tel: +92-300-1234567', pageWidth / 2, yPos, { align: 'center' });
       yPos += 8;
 
       // Separator line
@@ -195,32 +161,41 @@ const Orders = () => {
       pdf.line(5, yPos, pageWidth - 5, yPos);
       yPos += 6;
 
-      // RECEIPT DETAILS - Compact layout
+      // ==================== RECEIPT TITLE ====================
+      pdf.setFontSize(12);
+      pdf.setFont('helvetica', 'bold');
+      pdf.text('SALES RECEIPT', pageWidth / 2, yPos, { align: 'center' });
+      yPos += 8;
+
+      // ==================== RECEIPT INFO ====================
       pdf.setFontSize(8);
       pdf.setFont('helvetica', 'normal');
       
-      pdf.text(`Receipt: ${order.orderNumber}`, 5, yPos);
+      pdf.text(`Receipt No: ${order.orderNumber}`, 5, yPos);
       yPos += 4;
+      
       pdf.text(`Date: ${new Date(order.date).toLocaleDateString('en-GB')}`, 5, yPos);
+      pdf.text(`Time: ${order.time}`, 45, yPos);
       yPos += 4;
-      pdf.text(`Time: ${order.time}`, 5, yPos);
+      
+      pdf.text(`Customer: ${order.customerName || 'Walk-in'}`, 5, yPos);
       yPos += 4;
-      pdf.text(`Customer: ${order.customerName || 'Walk-in Customer'}`, 5, yPos);
-      yPos += 4;
+      
       pdf.text(`Cashier: ${order.createdBy}`, 5, yPos);
       yPos += 4;
+      
       pdf.text(`Payment: ${order.paymentMethod.toUpperCase()}`, 5, yPos);
       yPos += 8;
 
-      // ITEMS SECTION
+      // ==================== ITEMS SECTION ====================
       pdf.line(5, yPos, pageWidth - 5, yPos);
       yPos += 3;
       
       pdf.setFont('helvetica', 'bold');
-      pdf.text('Item', 5, yPos);
-      pdf.text('Qty', 45, yPos);
-      pdf.text('Rate', 55, yPos);
-      pdf.text('Total', 65, yPos);
+      pdf.text('ITEM', 5, yPos);
+      pdf.text('QTY', 50, yPos);
+      pdf.text('RATE', 58, yPos);
+      pdf.text('TOTAL', 68, yPos);
       yPos += 3;
       
       pdf.line(5, yPos, pageWidth - 5, yPos);
@@ -229,24 +204,27 @@ const Orders = () => {
       // Items list
       pdf.setFont('helvetica', 'normal');
       order.items.forEach((item: any) => {
-        // Product name (truncate if too long for thermal receipt)
-        const productName = item.productName.length > 22 
-          ? item.productName.substring(0, 22) + '...' 
+        // Product name (properly truncated)
+        const productName = item.productName.length > 25 
+          ? item.productName.substring(0, 25) + '...' 
           : item.productName;
         
         pdf.text(productName, 5, yPos);
-        pdf.text(item.quantity.toString(), 45, yPos);
-        pdf.text(item.unitPrice.toFixed(0), 55, yPos);
-        pdf.text(item.total.toFixed(0), 65, yPos);
-        yPos += 4;
+        yPos += 3;
+        
+        // Quantity, rate, total on next line
+        pdf.text(item.quantity.toString(), 50, yPos);
+        pdf.text(item.unitPrice.toFixed(0), 58, yPos);
+        pdf.text(item.total.toFixed(0), 68, yPos);
+        yPos += 5;
       });
 
-      yPos += 3;
+      yPos += 2;
       pdf.line(5, yPos, pageWidth - 5, yPos);
       yPos += 6;
 
-      // TOTALS SECTION
-      pdf.setFontSize(8);
+      // ==================== TOTALS SECTION ====================
+      pdf.setFontSize(9);
       pdf.setFont('helvetica', 'normal');
       
       pdf.text('Subtotal:', 35, yPos);
@@ -265,75 +243,73 @@ const Orders = () => {
         yPos += 4;
       }
       
-      // Total with emphasis
-      pdf.setFillColor(30, 58, 138);
-      pdf.rect(30, yPos - 2, 45, 8, 'F');
-      
-      pdf.setTextColor(255, 255, 255);
+      // TOTAL - Emphasized
       pdf.setFont('helvetica', 'bold');
-      pdf.setFontSize(9);
-      pdf.text('TOTAL:', 35, yPos + 2);
-      pdf.text(`PKR ${order.total.toFixed(0)}`, 55, yPos + 2);
-      
-      pdf.setTextColor(0, 0, 0);
-      yPos += 12;
+      pdf.setFontSize(11);
+      pdf.text('TOTAL:', 35, yPos);
+      pdf.text(`PKR ${order.total.toFixed(0)}`, 55, yPos);
+      yPos += 10;
 
-      // QR CODE SECTION
+      // ==================== QR CODE ====================
       pdf.setFontSize(8);
       pdf.setFont('helvetica', 'bold');
       pdf.text('Scan for Verification:', pageWidth / 2, yPos, { align: 'center' });
-      yPos += 5;
+      yPos += 4;
       
       // Center QR code
-      const qrSize = 25;
+      const qrSize = 20;
       const qrX = (pageWidth - qrSize) / 2;
       pdf.addImage(qrCodeDataURL, 'PNG', qrX, yPos, qrSize, qrSize);
-      yPos += qrSize + 8;
+      yPos += qrSize + 6;
 
-      // FOOTER
+      // ==================== FOOTER ====================
       pdf.setFontSize(7);
       pdf.setFont('helvetica', 'normal');
+      
       pdf.text('Thank you for your business!', pageWidth / 2, yPos, { align: 'center' });
       yPos += 4;
+      
       pdf.text('Exchange within 7 days with receipt', pageWidth / 2, yPos, { align: 'center' });
       yPos += 4;
+      
       pdf.text('For support: +92-300-1234567', pageWidth / 2, yPos, { align: 'center' });
       yPos += 4;
-      pdf.text('www.usmanhardware.com', pageWidth / 2, yPos, { align: 'center' });
-      yPos += 6;
       
-      pdf.setFontSize(6);
-      pdf.text(`Generated: ${new Date().toLocaleString('en-GB')}`, pageWidth / 2, yPos, { align: 'center' });
-
-      // Barcode-style decoration at bottom
+      pdf.text('www.usmanhardware.com', pageWidth / 2, yPos, { align: 'center' });
       yPos += 8;
+
+      // ==================== BARCODE DECORATION ====================
       pdf.setLineWidth(0.5);
-      for (let i = 0; i < 20; i++) {
-        const x = 10 + (i * 3);
-        const height = Math.random() * 8 + 4;
+      for (let i = 0; i < 15; i++) {
+        const x = 10 + (i * 4);
+        const height = Math.random() * 6 + 3;
         pdf.line(x, yPos, x, yPos + height);
       }
-      yPos += 10;
+      yPos += 8;
       
       pdf.setFontSize(6);
       pdf.text(order.orderNumber, pageWidth / 2, yPos, { align: 'center' });
+      yPos += 6;
+      
+      pdf.setFontSize(5);
+      pdf.text(`Generated: ${new Date().toLocaleString('en-GB')}`, pageWidth / 2, yPos, { align: 'center' });
 
       // Adjust PDF height to content
-      const finalHeight = yPos + 10;
+      const finalHeight = yPos + 5;
       pdf.internal.pageSize.height = finalHeight;
 
-      // Save with descriptive filename
-      pdf.save(`Thermal_Receipt_${order.orderNumber}_${new Date().toISOString().split('T')[0]}.pdf`);
+      // Save with clean filename
+      pdf.save(`Receipt_${order.orderNumber}.pdf`);
       
       toast({
-        title: "Thermal Receipt Generated",
-        description: `Professional thermal receipt for order ${order.orderNumber} ready for 80mm printer`,
+        title: "Beautiful Receipt Generated",
+        description: `Professional thermal receipt for order ${order.orderNumber} is ready!`,
       });
     } catch (error) {
-      console.error('Failed to generate thermal receipt:', error);
+      console.error('Failed to generate receipt:', error);
       toast({
         title: "Receipt Generation Failed",
-        description: "Failed to generate thermal receipt. Please try again.",
+        description: "Failed to generate receipt. Please try again.",
         variant: "destructive"
       });
     }
