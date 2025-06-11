@@ -240,7 +240,7 @@ export const OrderDetailsModal = ({ open, onOpenChange, order, onOrderUpdated }:
       } else {
         throw new Error(response.message || 'Failed to adjust order');
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to adjust order:', error);
       toast({
         title: "Adjustment Failed",
@@ -476,7 +476,7 @@ export const OrderDetailsModal = ({ open, onOpenChange, order, onOrderUpdated }:
       } else {
         throw new Error(response.message || 'Update failed');
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to update order:', error);
       toast({
         title: "Update Failed",
