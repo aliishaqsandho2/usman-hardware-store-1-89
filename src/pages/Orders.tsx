@@ -114,158 +114,276 @@ const Orders = () => {
     setIsOrderDetailsOpen(true);
   };
 
-  // FIXED: Clean receipt generation
+  // ENHANCED: Professional receipt generation with beautiful design
   const handleOrderPDF = async (order: Sale) => {
     try {
-      // Generate real QR code
-      const qrData = `USMAN-HARDWARE-ORDER-${order.orderNumber}-TOTAL-${order.total}`;
+      // Generate scannable QR code with proper data
+      const qrData = JSON.stringify({
+        business: "USMAN HARDWARE",
+        order: order.orderNumber,
+        amount: order.total,
+        date: order.date,
+        verification: `UH-${order.id}-${order.total}`
+      });
+      
       const qrCodeDataURL = await QRCode.toDataURL(qrData, {
-        width: 80,
-        margin: 1,
+        width: 120,
+        margin: 2,
         color: {
-          dark: '#000000',
-          light: '#FFFFFF'
-        }
+          dark: '#1a365d',
+          light: '#ffffff'
+        },
+        errorCorrectionLevel: 'M'
       });
 
-      // Create clean thermal receipt
+      // Create professional receipt with A4 size for better printing
       const pdf = new jsPDF({
         orientation: 'portrait',
         unit: 'mm',
-        format: [58, 150] // Smaller thermal receipt size
+        format: 'a4'
       });
 
-      const pageWidth = 58;
-      let yPos = 5;
+      const pageWidth = 210;
+      const pageHeight = 297;
+      const margin = 20;
+      let yPos = margin;
 
-      // Company Header
+      // WATERMARK - Beautiful diagonal background text
+      pdf.setTextColor(240, 240, 240);
+      pdf.setFontSize(60);
+      pdf.setFont('helvetica', 'bold');
+      
+      // Rotate and add watermark
+      pdf.saveGraphicsState();
+      pdf.setGState(pdf.GState({ opacity: 0.1 }));
+      
+      // Calculate center position for watermark
+      const centerX = pageWidth / 2;
+      const centerY = pageHeight / 2;
+      
+      // Rotate 45 degrees and add watermark
+      const angle = -45 * (Math.PI / 180);
+      pdf.text('USMAN HARDWARE', centerX, centerY, {
+        angle: angle,
+        align: 'center'
+      });
+      
+      pdf.restoreGraphicsState();
+      pdf.setTextColor(0, 0, 0); // Reset to black
+
+      // HEADER SECTION with gradient-like effect
+      pdf.setFillColor(26, 54, 93); // Dark blue
+      pdf.rect(0, 0, pageWidth, 45, 'F');
+      
+      pdf.setTextColor(255, 255, 255);
+      pdf.setFontSize(28);
+      pdf.setFont('helvetica', 'bold');
+      pdf.text('USMAN HARDWARE', pageWidth / 2, 20, { align: 'center' });
+      
+      pdf.setFontSize(12);
+      pdf.setFont('helvetica', 'normal');
+      pdf.text('Premium Furniture Hardware Specialist', pageWidth / 2, 28, { align: 'center' });
+      
       pdf.setFontSize(10);
-      pdf.setFont('helvetica', 'bold');
-      pdf.text('USMAN HARDWARE', pageWidth / 2, yPos, { align: 'center' });
-      yPos += 4;
+      pdf.text('📍 Hafizabad, Punjab, Pakistan', pageWidth / 2, 35, { align: 'center' });
+      pdf.text('📞 +92-300-1234567 | 🌐 www.usmanhardware.com', pageWidth / 2, 40, { align: 'center' });
+
+      // Reset text color for body
+      pdf.setTextColor(0, 0, 0);
+      yPos = 60;
+
+      // RECEIPT TITLE with decorative border
+      pdf.setFillColor(248, 250, 252);
+      pdf.rect(margin, yPos - 5, pageWidth - (2 * margin), 20, 'F');
+      pdf.setDrawColor(26, 54, 93);
+      pdf.setLineWidth(0.5);
+      pdf.rect(margin, yPos - 5, pageWidth - (2 * margin), 20, 'S');
       
-      pdf.setFontSize(7);
-      pdf.setFont('helvetica', 'normal');
-      pdf.text('Hafizabad, Pakistan', pageWidth / 2, yPos, { align: 'center' });
-      yPos += 3;
-      pdf.text('Tel: +92-300-1234567', pageWidth / 2, yPos, { align: 'center' });
-      yPos += 5;
-
-      // Separator
-      pdf.setDrawColor(0);
-      pdf.line(2, yPos, pageWidth - 2, yPos);
-      yPos += 3;
-
-      // Receipt Title
-      pdf.setFontSize(8);
+      pdf.setFontSize(18);
       pdf.setFont('helvetica', 'bold');
-      pdf.text('SALES RECEIPT', pageWidth / 2, yPos, { align: 'center' });
-      yPos += 5;
-
-      // Order Information
-      pdf.setFontSize(6);
-      pdf.setFont('helvetica', 'normal');
-      pdf.text(`No: ${order.orderNumber}`, 2, yPos);
-      yPos += 3;
-      pdf.text(`Date: ${new Date(order.date).toLocaleDateString()}`, 2, yPos);
-      yPos += 3;
-      pdf.text(`Time: ${order.time}`, 2, yPos);
-      yPos += 3;
-      pdf.text(`Customer: ${order.customerName || 'Walk-in'}`, 2, yPos);
-      yPos += 3;
-      pdf.text(`Cashier: ${order.createdBy}`, 2, yPos);
-      yPos += 5;
-
-      // Items header
-      pdf.line(2, yPos, pageWidth - 2, yPos);
-      yPos += 2;
+      pdf.setTextColor(26, 54, 93);
+      pdf.text('SALES RECEIPT', pageWidth / 2, yPos + 7, { align: 'center' });
       
-      pdf.setFontSize(6);
+      yPos += 25;
+
+      // RECEIPT DETAILS in professional layout
+      pdf.setTextColor(0, 0, 0);
+      pdf.setFontSize(11);
+      pdf.setFont('helvetica', 'normal');
+      
+      // Left column
       pdf.setFont('helvetica', 'bold');
-      pdf.text('Item', 2, yPos);
-      pdf.text('Qty', 32, yPos);
-      pdf.text('Rate', 40, yPos);
-      pdf.text('Total', 48, yPos);
-      yPos += 2;
-      
-      pdf.line(2, yPos, pageWidth - 2, yPos);
-      yPos += 3;
-
-      // Items
+      pdf.text('Receipt No:', margin, yPos);
       pdf.setFont('helvetica', 'normal');
-      order.items.forEach((item: any) => {
-        // Product name (truncate if too long)
-        const productName = item.productName.length > 18 
-          ? item.productName.substring(0, 18) + '...' 
+      pdf.text(order.orderNumber, margin + 35, yPos);
+      
+      pdf.setFont('helvetica', 'bold');
+      pdf.text('Date:', margin, yPos + 7);
+      pdf.setFont('helvetica', 'normal');
+      pdf.text(new Date(order.date).toLocaleDateString('en-GB'), margin + 35, yPos + 7);
+      
+      pdf.setFont('helvetica', 'bold');
+      pdf.text('Time:', margin, yPos + 14);
+      pdf.setFont('helvetica', 'normal');
+      pdf.text(order.time, margin + 35, yPos + 14);
+
+      // Right column
+      pdf.setFont('helvetica', 'bold');
+      pdf.text('Customer:', pageWidth - margin - 80, yPos);
+      pdf.setFont('helvetica', 'normal');
+      pdf.text(order.customerName || 'Walk-in Customer', pageWidth - margin - 45, yPos);
+      
+      pdf.setFont('helvetica', 'bold');
+      pdf.text('Cashier:', pageWidth - margin - 80, yPos + 7);
+      pdf.setFont('helvetica', 'normal');
+      pdf.text(order.createdBy, pageWidth - margin - 45, yPos + 7);
+      
+      pdf.setFont('helvetica', 'bold');
+      pdf.text('Payment:', pageWidth - margin - 80, yPos + 14);
+      pdf.setFont('helvetica', 'normal');
+      pdf.text(order.paymentMethod.toUpperCase(), pageWidth - margin - 45, yPos + 14);
+
+      yPos += 30;
+
+      // ITEMS TABLE with professional styling
+      // Table header
+      pdf.setFillColor(26, 54, 93);
+      pdf.rect(margin, yPos, pageWidth - (2 * margin), 12, 'F');
+      
+      pdf.setTextColor(255, 255, 255);
+      pdf.setFont('helvetica', 'bold');
+      pdf.setFontSize(10);
+      
+      pdf.text('Item Description', margin + 3, yPos + 8);
+      pdf.text('Qty', pageWidth - margin - 60, yPos + 8);
+      pdf.text('Rate (PKR)', pageWidth - margin - 45, yPos + 8);
+      pdf.text('Amount (PKR)', pageWidth - margin - 25, yPos + 8);
+      
+      yPos += 12;
+
+      // Table rows
+      pdf.setTextColor(0, 0, 0);
+      pdf.setFont('helvetica', 'normal');
+      
+      order.items.forEach((item: any, index: number) => {
+        // Alternate row colors
+        if (index % 2 === 1) {
+          pdf.setFillColor(248, 250, 252);
+          pdf.rect(margin, yPos, pageWidth - (2 * margin), 8, 'F');
+        }
+        
+        // Product name (wrap if too long)
+        const productName = item.productName.length > 45 
+          ? item.productName.substring(0, 45) + '...' 
           : item.productName;
         
-        pdf.text(productName, 2, yPos);
-        pdf.text(item.quantity.toString(), 32, yPos);
-        pdf.text(item.unitPrice.toFixed(0), 40, yPos);
-        pdf.text(item.total.toFixed(0), 48, yPos);
-        yPos += 3;
+        pdf.text(productName, margin + 3, yPos + 6);
+        pdf.text(item.quantity.toString(), pageWidth - margin - 58, yPos + 6);
+        pdf.text(item.unitPrice.toLocaleString(), pageWidth - margin - 42, yPos + 6);
+        pdf.text(item.total.toLocaleString(), pageWidth - margin - 22, yPos + 6);
+        yPos += 8;
       });
 
-      yPos += 1;
-      pdf.line(2, yPos, pageWidth - 2, yPos);
-      yPos += 3;
+      // Table border
+      pdf.setDrawColor(26, 54, 93);
+      pdf.setLineWidth(0.5);
+      pdf.rect(margin, yPos - (order.items.length * 8) - 12, pageWidth - (2 * margin), (order.items.length * 8) + 12, 'S');
 
-      // Totals
+      yPos += 10;
+
+      // TOTALS SECTION with elegant styling
+      const totalsX = pageWidth - margin - 60;
+      
+      pdf.setFontSize(10);
       pdf.setFont('helvetica', 'normal');
-      pdf.text('Subtotal:', 30, yPos);
-      pdf.text(`${order.subtotal.toFixed(0)}`, 48, yPos);
-      yPos += 3;
+      
+      pdf.text('Subtotal:', totalsX - 30, yPos);
+      pdf.text(`PKR ${order.subtotal.toLocaleString()}`, totalsX, yPos);
+      yPos += 7;
       
       if (order.discount > 0) {
-        pdf.text('Discount:', 30, yPos);
-        pdf.text(`-${order.discount.toFixed(0)}`, 48, yPos);
-        yPos += 3;
+        pdf.setTextColor(220, 38, 127); // Pink for discount
+        pdf.text('Discount:', totalsX - 30, yPos);
+        pdf.text(`-PKR ${order.discount.toLocaleString()}`, totalsX, yPos);
+        pdf.setTextColor(0, 0, 0);
+        yPos += 7;
       }
       
       if (order.tax > 0) {
-        pdf.text('Tax:', 30, yPos);
-        pdf.text(`${order.tax.toFixed(0)}`, 48, yPos);
-        yPos += 3;
+        pdf.text('Tax:', totalsX - 30, yPos);
+        pdf.text(`PKR ${order.tax.toLocaleString()}`, totalsX, yPos);
+        yPos += 7;
       }
       
-      // Total
-      pdf.setFont('helvetica', 'bold');
-      pdf.setFontSize(7);
-      pdf.text('TOTAL:', 30, yPos);
-      pdf.text(`PKR ${order.total.toFixed(0)}`, 45, yPos);
-      yPos += 5;
-
-      // Payment method
-      pdf.setFontSize(6);
-      pdf.setFont('helvetica', 'normal');
-      pdf.text(`Payment: ${order.paymentMethod.toUpperCase()}`, pageWidth / 2, yPos, { align: 'center' });
-      yPos += 5;
-
-      // QR Code - smaller and centered
-      pdf.addImage(qrCodeDataURL, 'PNG', pageWidth / 2 - 10, yPos, 20, 20);
-      yPos += 22;
-
-      // Footer
-      pdf.setFontSize(5);
-      pdf.text('Thank you for your business!', pageWidth / 2, yPos, { align: 'center' });
-      yPos += 2;
-      pdf.text('Visit: www.usmanhardware.com', pageWidth / 2, yPos, { align: 'center' });
-      yPos += 3;
+      // Total with emphasis
+      pdf.setFillColor(26, 54, 93);
+      pdf.rect(totalsX - 35, yPos - 3, 65, 12, 'F');
       
-      pdf.text(`Generated: ${new Date().toLocaleString()}`, pageWidth / 2, yPos, { align: 'center' });
+      pdf.setTextColor(255, 255, 255);
+      pdf.setFont('helvetica', 'bold');
+      pdf.setFontSize(12);
+      pdf.text('TOTAL:', totalsX - 30, yPos + 5);
+      pdf.text(`PKR ${order.total.toLocaleString()}`, totalsX, yPos + 5);
+      
+      yPos += 25;
 
-      // Save PDF
-      pdf.save(`receipt_${order.orderNumber}.pdf`);
+      // QR CODE SECTION with beautiful border
+      pdf.setTextColor(0, 0, 0);
+      pdf.setFontSize(11);
+      pdf.setFont('helvetica', 'bold');
+      pdf.text('Scan for Verification:', margin, yPos);
+      
+      // QR Code with decorative border
+      pdf.setDrawColor(26, 54, 93);
+      pdf.setLineWidth(2);
+      pdf.rect(margin - 3, yPos + 3, 36, 36, 'S');
+      pdf.addImage(qrCodeDataURL, 'PNG', margin, yPos + 6, 30, 30);
+      
+      // QR Code info
+      pdf.setFontSize(8);
+      pdf.setFont('helvetica', 'normal');
+      pdf.text('Scan this QR code to verify', margin + 40, yPos + 10);
+      pdf.text('receipt authenticity and', margin + 40, yPos + 15);
+      pdf.text('access digital copy', margin + 40, yPos + 20);
+      
+      yPos += 50;
+
+      // FOOTER with contact info and policies
+      pdf.setDrawColor(26, 54, 93);
+      pdf.line(margin, yPos, pageWidth - margin, yPos);
+      yPos += 8;
+      
+      pdf.setFontSize(10);
+      pdf.setFont('helvetica', 'bold');
+      pdf.setTextColor(26, 54, 93);
+      pdf.text('Thank you for choosing Usman Hardware!', pageWidth / 2, yPos, { align: 'center' });
+      yPos += 8;
+      
+      pdf.setFontSize(8);
+      pdf.setFont('helvetica', 'normal');
+      pdf.setTextColor(100, 100, 100);
+      pdf.text('• Exchange Policy: Items can be exchanged within 7 days with original receipt', pageWidth / 2, yPos, { align: 'center' });
+      yPos += 5;
+      pdf.text('• For support: +92-300-1234567 | Email: support@usmanhardware.com', pageWidth / 2, yPos, { align: 'center' });
+      yPos += 5;
+      pdf.text('• Visit us: Monday to Saturday, 9:00 AM - 8:00 PM', pageWidth / 2, yPos, { align: 'center' });
+      yPos += 10;
+      
+      pdf.setFontSize(7);
+      pdf.text(`Generated on: ${new Date().toLocaleString()} | Receipt ID: ${order.orderNumber}`, pageWidth / 2, yPos, { align: 'center' });
+
+      // Save with descriptive filename
+      pdf.save(`UH_Receipt_${order.orderNumber}_${new Date().toISOString().split('T')[0]}.pdf`);
       
       toast({
-        title: "Receipt Downloaded",
-        description: `Clean receipt for order ${order.orderNumber} downloaded successfully`,
+        title: "Professional Receipt Generated",
+        description: `Beautiful receipt for order ${order.orderNumber} downloaded successfully with scannable QR code`,
       });
     } catch (error) {
-      console.error('Failed to generate PDF:', error);
+      console.error('Failed to generate professional PDF:', error);
       toast({
         title: "PDF Generation Failed",
-        description: "Failed to generate PDF receipt. Please try again.",
+        description: "Failed to generate professional receipt. Please try again.",
         variant: "destructive"
       });
     }
@@ -811,3 +929,5 @@ const Orders = () => {
 };
 
 export default Orders;
+
+}
