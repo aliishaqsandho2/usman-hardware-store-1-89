@@ -39,9 +39,7 @@ export const OrderDetailsModal = ({ open, onOpenChange, order, onOrderUpdated }:
   const [customerSearch, setCustomerSearch] = useState('');
   const [editLoading, setEditLoading] = useState(false);
 
-  if (!order) return null;
-
-  // FIXED: Use useEffect instead of useState for side effects
+  // FIXED: Move useEffect before early return to follow Rules of Hooks
   useEffect(() => {
     if (order) {
       setEditValues({
@@ -52,6 +50,8 @@ export const OrderDetailsModal = ({ open, onOpenChange, order, onOrderUpdated }:
       });
     }
   }, [order]);
+
+  if (!order) return null;
 
   // Fetch customers when customer edit mode is activated
   const fetchCustomers = async () => {
