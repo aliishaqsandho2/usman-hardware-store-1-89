@@ -9,10 +9,9 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { User, Package, Calendar, DollarSign, FileText, RotateCcw, AlertTriangle, Minus, Plus, ArrowLeft, Edit2, Save, X, QrCode } from "lucide-react";
+import { User, Package, Calendar, DollarSign, RotateCcw, AlertTriangle, Minus, Plus, ArrowLeft, Edit2, Save, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { salesApi, customersApi } from "@/services/api";
-import jsPDF from 'jspdf';
 
 interface OrderDetailsModalProps {
   open: boolean;
@@ -27,7 +26,6 @@ export const OrderDetailsModal = ({ open, onOpenChange, order, onOrderUpdated }:
   const [adjustmentItems, setAdjustmentItems] = useState<any[]>([]);
   const [adjustmentNotes, setAdjustmentNotes] = useState("");
   const [adjustmentLoading, setAdjustmentLoading] = useState(false);
-  const [pdfLoading, setPdfLoading] = useState(false);
   
   // Edit mode states
   const [editMode, setEditMode] = useState<'status' | 'payment' | 'customer' | null>(null);
@@ -42,6 +40,18 @@ export const OrderDetailsModal = ({ open, onOpenChange, order, onOrderUpdated }:
   const [editLoading, setEditLoading] = useState(false);
 
   if (!order) return null;
+
+  // Update editValues when order changes
+  useState(() => {
+    if (order) {
+      setEditValues({
+        status: order.status || '',
+        paymentMethod: order.paymentMethod || '',
+        customerId: order.customerId || null,
+        customerName: order.customerName || ''
+      });
+    }
+  });
 
   // Fetch customers when customer edit mode is activated
   const fetchCustomers = async () => {
@@ -84,23 +94,37 @@ export const OrderDetailsModal = ({ open, onOpenChange, order, onOrderUpdated }:
     try {
       setEditLoading(true);
       
+      console.log('Attempting to save edit mode:', editMode);
+      console.log('Edit values:', editValues);
+      console.log('Order ID:', order.id);
+      
       if (editMode === 'status') {
+        console.log('Updating status to:', editValues.status);
         const response = await salesApi.updateStatus(order.id, { status: editValues.status });
+        console.log('Status update response:', response);
+        
         if (response.success) {
           toast({
             title: "Status Updated",
             description: "Order status has been updated successfully",
           });
+        } else {
+          throw new Error(response.message || 'Failed to update status');
         }
       } else if (editMode === 'payment' || editMode === 'customer') {
         const updateData: any = {};
         
         if (editMode === 'payment') {
           updateData.paymentMethod = editValues.paymentMethod;
+          console.log('Updating payment method to:', editValues.paymentMethod);
         } else if (editMode === 'customer') {
           updateData.customerId = editValues.customerId;
+          console.log('Updating customer to:', editValues.customerId);
         }
         
+        console.log('Sending update data:', updateData);
+        
+        // Using direct fetch for now since salesApi doesn't have a general update method
         const response = await fetch(`https://zaidawn.site/wp-json/ims/v1/sales/${order.id}/details`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
@@ -108,6 +132,7 @@ export const OrderDetailsModal = ({ open, onOpenChange, order, onOrderUpdated }:
         });
         
         const result = await response.json();
+        console.log('Update response:', result);
         
         if (result.success) {
           toast({
@@ -244,191 +269,6 @@ export const OrderDetailsModal = ({ open, onOpenChange, order, onOrderUpdated }:
     }
   };
 
-  // Beautiful receipt-sized PDF with QR code
-  const handleDownloadPDF = async () => {
-    try {
-      setPdfLoading(true);
-      
-      // Create receipt-sized PDF (80mm width = 226.77 points)
-      const pdf = new jsPDF({
-        orientation: 'portrait',
-        unit: 'pt',
-        format: [226.77, 400] // 80mm width, auto height
-      });
-
-      const pageWidth = pdf.internal.pageSize.width;
-      let yPos = 20;
-      const margin = 10;
-      const contentWidth = pageWidth - (margin * 2);
-
-      // Header - Store Name
-      pdf.setFontSize(16);
-      pdf.setFont('helvetica', 'bold');
-      pdf.text('USMAN HARDWARE', pageWidth / 2, yPos, { align: 'center' });
-      yPos += 20;
-      
-      pdf.setFontSize(10);
-      pdf.setFont('helvetica', 'normal');
-      pdf.text('Hafizabad, Pakistan', pageWidth / 2, yPos, { align: 'center' });
-      yPos += 8;
-      pdf.text('Tel: +92-XXX-XXXXXXX', pageWidth / 2, yPos, { align: 'center' });
-      yPos += 15;
-
-      // Decorative line
-      pdf.setLineWidth(1);
-      pdf.line(margin, yPos, pageWidth - margin, yPos);
-      yPos += 15;
-
-      // Receipt Title
-      pdf.setFontSize(14);
-      pdf.setFont('helvetica', 'bold');
-      pdf.text('SALES RECEIPT', pageWidth / 2, yPos, { align: 'center' });
-      yPos += 20;
-
-      // Order Details
-      pdf.setFontSize(9);
-      pdf.setFont('helvetica', 'normal');
-      
-      // Two column layout for order info
-      pdf.text(`Receipt: ${order.orderNumber}`, margin, yPos);
-      pdf.text(`Date: ${new Date(order.date).toLocaleDateString('en-GB')}`, margin, yPos + 12);
-      pdf.text(`Time: ${order.time}`, margin, yPos + 24);
-      pdf.text(`Cashier: Admin`, margin, yPos + 36);
-      yPos += 50;
-
-      // Customer Info
-      pdf.setFont('helvetica', 'bold');
-      pdf.text('CUSTOMER:', margin, yPos);
-      pdf.setFont('helvetica', 'normal');
-      pdf.text(order.customerName || 'Walk-in Customer', margin + 45, yPos);
-      yPos += 15;
-
-      // Dotted line separator
-      pdf.setLineDashPattern([2, 2], 0);
-      pdf.line(margin, yPos, pageWidth - margin, yPos);
-      pdf.setLineDashPattern([], 0);
-      yPos += 15;
-
-      // Items Header
-      pdf.setFontSize(8);
-      pdf.setFont('helvetica', 'bold');
-      pdf.text('ITEM', margin, yPos);
-      pdf.text('QTY', pageWidth - 80, yPos);
-      pdf.text('RATE', pageWidth - 50, yPos);
-      pdf.text('AMOUNT', pageWidth - margin, yPos, { align: 'right' });
-      yPos += 10;
-
-      pdf.line(margin, yPos, pageWidth - margin, yPos);
-      yPos += 8;
-
-      // Items
-      pdf.setFont('helvetica', 'normal');
-      order.items.forEach((item: any) => {
-        const itemName = item.productName.length > 18 ? 
-          item.productName.substring(0, 18) + '...' : item.productName;
-        
-        pdf.text(itemName, margin, yPos);
-        pdf.text(item.quantity.toString(), pageWidth - 80, yPos);
-        pdf.text(item.unitPrice.toFixed(0), pageWidth - 50, yPos);
-        pdf.text(item.total.toFixed(0), pageWidth - margin, yPos, { align: 'right' });
-        yPos += 12;
-      });
-
-      // Separator line
-      yPos += 5;
-      pdf.line(margin, yPos, pageWidth - margin, yPos);
-      yPos += 12;
-
-      // Totals
-      pdf.setFont('helvetica', 'normal');
-      pdf.text('Subtotal:', pageWidth - 80, yPos);
-      pdf.text(`PKR ${order.subtotal.toFixed(0)}`, pageWidth - margin, yPos, { align: 'right' });
-      yPos += 12;
-      
-      if (order.discount > 0) {
-        pdf.text('Discount:', pageWidth - 80, yPos);
-        pdf.text(`PKR ${order.discount.toFixed(0)}`, pageWidth - margin, yPos, { align: 'right' });
-        yPos += 12;
-      }
-      
-      if (order.tax > 0) {
-        pdf.text('Tax:', pageWidth - 80, yPos);
-        pdf.text(`PKR ${order.tax.toFixed(0)}`, pageWidth - margin, yPos, { align: 'right' });
-        yPos += 12;
-      }
-
-      // Bold total line
-      pdf.setLineWidth(2);
-      pdf.line(pageWidth - 85, yPos, pageWidth - margin, yPos);
-      yPos += 8;
-      
-      pdf.setFontSize(11);
-      pdf.setFont('helvetica', 'bold');
-      pdf.text('TOTAL:', pageWidth - 80, yPos);
-      pdf.text(`PKR ${order.total.toFixed(0)}`, pageWidth - margin, yPos, { align: 'right' });
-      yPos += 15;
-
-      // Payment method
-      pdf.setFontSize(9);
-      pdf.setFont('helvetica', 'normal');
-      pdf.text(`Payment: ${order.paymentMethod.toUpperCase()}`, margin, yPos);
-      yPos += 20;
-
-      // QR Code (simple text-based for now - you can enhance with actual QR generation)
-      pdf.setFontSize(8);
-      pdf.text('Scan for digital receipt:', pageWidth / 2, yPos, { align: 'center' });
-      yPos += 10;
-      
-      // Simple QR code placeholder (you can replace with actual QR library)
-      const qrSize = 40;
-      const qrX = (pageWidth - qrSize) / 2;
-      pdf.rect(qrX, yPos, qrSize, qrSize);
-      
-      // QR code pattern simulation
-      for (let i = 0; i < 5; i++) {
-        for (let j = 0; j < 5; j++) {
-          if ((i + j) % 2 === 0) {
-            pdf.rect(qrX + (i * 8), yPos + (j * 8), 8, 8, 'F');
-          }
-        }
-      }
-      yPos += qrSize + 15;
-
-      // Footer
-      pdf.setFontSize(7);
-      pdf.text('Thank you for your business!', pageWidth / 2, yPos, { align: 'center' });
-      yPos += 8;
-      pdf.text('Visit us again soon', pageWidth / 2, yPos, { align: 'center' });
-      yPos += 10;
-      
-      pdf.text(`Generated: ${new Date().toLocaleString()}`, pageWidth / 2, yPos, { align: 'center' });
-      yPos += 8;
-      
-      // Store website/contact
-      pdf.text('www.usmanhardware.com', pageWidth / 2, yPos, { align: 'center' });
-
-      // Auto-adjust PDF height
-      const finalHeight = yPos + 20;
-      pdf.internal.pageSize.height = finalHeight;
-
-      pdf.save(`receipt_${order.orderNumber}.pdf`);
-      
-      toast({
-        title: "Receipt Downloaded",
-        description: "Beautiful receipt has been downloaded successfully",
-      });
-    } catch (error) {
-      console.error('Failed to generate PDF:', error);
-      toast({
-        title: "PDF Generation Failed",
-        description: "Failed to generate receipt. Please try again.",
-        variant: "destructive"
-      });
-    } finally {
-      setPdfLoading(false);
-    }
-  };
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-5xl max-h-[95vh] overflow-auto">
@@ -496,7 +336,7 @@ export const OrderDetailsModal = ({ open, onOpenChange, order, onOrderUpdated }:
                       <div className="flex gap-2">
                         <Button size="sm" onClick={handleEditSave} disabled={editLoading}>
                           <Save className="h-3 w-3 mr-1" />
-                          Save
+                          {editLoading ? 'Saving...' : 'Save'}
                         </Button>
                         <Button size="sm" variant="outline" onClick={handleEditCancel}>
                           <X className="h-3 w-3 mr-1" />
@@ -506,8 +346,8 @@ export const OrderDetailsModal = ({ open, onOpenChange, order, onOrderUpdated }:
                     </div>
                   ) : (
                     <>
-                      <p><strong>Name:</strong> {editValues.customerName || 'Walk-in Customer'}</p>
-                      <p><strong>Customer ID:</strong> {editValues.customerId || 'N/A'}</p>
+                      <p><strong>Name:</strong> {order.customerName || 'Walk-in Customer'}</p>
+                      <p><strong>Customer ID:</strong> {order.customerId || 'N/A'}</p>
                     </>
                   )}
                 </CardContent>
@@ -548,7 +388,7 @@ export const OrderDetailsModal = ({ open, onOpenChange, order, onOrderUpdated }:
                       </div>
                     ) : (
                       <div className="flex items-center gap-2">
-                        {getStatusBadge(editValues.status)}
+                        {getStatusBadge(order.status)}
                         <Button
                           variant="ghost"
                           size="sm"
@@ -586,7 +426,7 @@ export const OrderDetailsModal = ({ open, onOpenChange, order, onOrderUpdated }:
                       </div>
                     ) : (
                       <div className="flex items-center gap-2">
-                        <span className="capitalize">{editValues.paymentMethod}</span>
+                        <span className="capitalize">{order.paymentMethod}</span>
                         <Button
                           variant="ghost"
                           size="sm"
@@ -621,14 +461,22 @@ export const OrderDetailsModal = ({ open, onOpenChange, order, onOrderUpdated }:
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {order.items.map((item: any, index: number) => (
-                      <TableRow key={index}>
-                        <TableCell>{item.productName}</TableCell>
-                        <TableCell>{item.quantity}</TableCell>
-                        <TableCell>PKR {item.unitPrice.toFixed(2)}</TableCell>
-                        <TableCell>PKR {item.total.toFixed(2)}</TableCell>
+                    {order.items && order.items.length > 0 ? (
+                      order.items.map((item: any, index: number) => (
+                        <TableRow key={index}>
+                          <TableCell>{item.productName || 'Unknown Product'}</TableCell>
+                          <TableCell>{item.quantity || 0}</TableCell>
+                          <TableCell>PKR {(item.unitPrice || 0).toFixed(2)}</TableCell>
+                          <TableCell>PKR {(item.total || 0).toFixed(2)}</TableCell>
+                        </TableRow>
+                      ))
+                    ) : (
+                      <TableRow>
+                        <TableCell colSpan={4} className="text-center text-gray-500">
+                          No items found in this order
+                        </TableCell>
                       </TableRow>
-                    ))}
+                    )}
                   </TableBody>
                 </Table>
               </CardContent>
@@ -645,7 +493,7 @@ export const OrderDetailsModal = ({ open, onOpenChange, order, onOrderUpdated }:
               <CardContent className="space-y-2">
                 <div className="flex justify-between">
                   <span>Subtotal:</span>
-                  <span>PKR {order.subtotal.toFixed(2)}</span>
+                  <span>PKR {(order.subtotal || 0).toFixed(2)}</span>
                 </div>
                 {order.discount > 0 && (
                   <div className="flex justify-between">
@@ -662,22 +510,13 @@ export const OrderDetailsModal = ({ open, onOpenChange, order, onOrderUpdated }:
                 <Separator />
                 <div className="flex justify-between font-bold text-lg">
                   <span>Total:</span>
-                  <span>PKR {order.total.toFixed(2)}</span>
+                  <span>PKR {(order.total || 0).toFixed(2)}</span>
                 </div>
               </CardContent>
             </Card>
 
-            {/* Action Buttons */}
+            {/* Action Buttons - Removed Download Receipt Button */}
             <div className="flex gap-2 justify-end">
-              <Button
-                onClick={handleDownloadPDF}
-                disabled={pdfLoading}
-                className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white"
-              >
-                <QrCode className="h-4 w-4 mr-2" />
-                {pdfLoading ? 'Generating...' : 'Download Receipt'}
-              </Button>
-              
               {order.status === 'completed' && (
                 <Button
                   onClick={initializeAdjustmentForm}
